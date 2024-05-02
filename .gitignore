@@ -1,0 +1,6 @@
+local.php
+*.local.php
+vendor/
+.idea/
+composer.lock
+public/img/logo.png

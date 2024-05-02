@@ -1,0 +1,33 @@
+{
+    "name": "marcel-maqsood/session-auth-middleware",
+    "description": "The SessionAuthMiddleware is a PSR-15 middleware that provides handling for sessions and logins in a Laminas/Mezzio application",
+    "keywords": [
+        "framework",
+        "MazeDEV",
+        "formular",
+        "middleware"
+    ],
+    "license": "MIT",
+    "homepage": "https://github.com/marcel-maqsood/Mezzio-Session-Auth-Middleware",
+    "authors": [
+        {
+            "name": "Technikhafen",
+            "homepage": "https://technikhafen.de"
+        },
+        {
+            "name": "Marcel Maqsood"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "MazeDEV\\SessionAuthMiddleware\\": "src/"
+        }
+    },
+    "require": {
+        "mezzio/mezzio-authentication": "^1.9",
+        "mezzio/mezzio-authentication-session": "^1.9",
+        "webmozart/assert": "^1.11",
+        "psr/container": "^2.0",
+        "mezzio/mezzio-router": "^3.17"
+    }
+}
