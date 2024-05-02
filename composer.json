@@ -28,7 +28,7 @@
         "mezzio/mezzio-authentication": "^1.9",
         "mezzio/mezzio-authentication-session": "^1.9",
         "webmozart/assert": "^1.11",
-        "psr/container": "^2.0",
+        "psr/container": "^1.0",
         "mezzio/mezzio-router": "^3.17",
         "marcel-maqsood/database-connector": "^1.0"
     }
