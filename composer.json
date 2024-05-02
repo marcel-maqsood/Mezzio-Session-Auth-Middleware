@@ -24,6 +24,12 @@
             "MazeDEV\\SessionAuthMiddleware\\": "src/"
         }
     },
+    "extra": {
+        "laminas": {
+            "component": "MazeDEV\\SessionAuthMiddleware",
+            "config-provider": "MazeDEV\\SessionAuthMiddleware\\ConfigProvider"
+        }
+    },
     "require": {
         "mezzio/mezzio-authentication": "^1.9",
         "mezzio/mezzio-authentication-session": "^1.9",
