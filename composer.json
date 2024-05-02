@@ -1,5 +1,5 @@
 {
-    "name": "marcel-maqsood/session-auth-middleware",
+    "name": "marcel-maqsood/session-auth",
     "description": "The SessionAuthMiddleware is a PSR-15 middleware that provides handling for sessions and logins in a Laminas/Mezzio application",
     "keywords": [
         "framework",
