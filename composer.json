@@ -21,13 +21,13 @@
     ],
     "autoload": {
         "psr-4": {
-            "MazeDEV\\SessionAuthMiddleware\\": "src/"
+            "MazeDEV\\SessionAuth\\": "src/"
         }
     },
     "extra": {
         "laminas": {
-            "component": "MazeDEV\\SessionAuthMiddleware",
-            "config-provider": "MazeDEV\\SessionAuthMiddleware\\ConfigProvider"
+            "component": "MazeDEV\\SessionAuth",
+            "config-provider": "MazeDEV\\SessionAuth\\ConfigProvider"
         }
     },
     "require": {
