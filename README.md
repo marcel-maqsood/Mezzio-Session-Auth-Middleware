@@ -1,5 +1,9 @@
 # Session-Auth-Middleware
 
+
+You can install this package with the following command:
+```composer require marcel-maqsood/session-auth-middleware```
+
 ## Configuration
 
 ### Additional Notes: ###
