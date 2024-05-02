@@ -24,7 +24,7 @@ As our Middleware can run on any request, it is meant to be injected within your
 This fullfils multiple purposes:
 - You dont have to configure each ConfigProvide within your modules
 - Any request will always be capabale of SessionAuth Handling (But this will only be used if the route contains our SessionAuthMiddleware)
-- You cant forget to add our base config in every new module that you supply; which will could be a hustle otherwise.
+- You cant forget to add our base config in every new module that you supply; which could be a hustle otherwise.
 
 You can find our default configuration in ```config\autoload\authentication.global.php``` and drop it into your applications ```config\autoload\``` folder.
 It contains every configuration needed to run our SessionAuthMiddleware and can easily be copied and adjusted..
