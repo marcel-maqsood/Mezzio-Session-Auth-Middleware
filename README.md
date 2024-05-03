@@ -92,6 +92,25 @@ The 'routename' (like: 'authorizedPage') of each route is also its permission; s
 However this only applies to routes that our Middleware is invloved, any other route doesn't have to be added within the database.
 
 
+#### Logout Handlers ####
+We provide you a default LogoutHandler which just removes the UserInterface from the request's session and redirect the request towards your home route.
+As this is currently hard-coded, you have to provide your application with one route named "home", best case: your main landingpage.
+This is how to add the LogoutHandler in one of your routes:
+```
+$app->route('/logout[/]',
+    [
+        MazeDEV\SessionAuth\LogoutHandler\LogoutHandler::class,
+    ],
+    [
+        'GET',
+        'POST'
+    ],
+    'logout'
+);
+```
+From within your applcation, you just have to add it as a link or redirect so that users can logout.
+
+
 ##### <a id="pdo">persistentpdo - An array, in which we define our database-connection rules:</a>
 See MazeDEV/Marcel-Maqsood(https://github.com/marcel-maqsood/DatabaseConnector) for additional informations and documentation.
 Our SessionAuthMiddleware uses this DatabaseConnector and therefore requires its configuration set.

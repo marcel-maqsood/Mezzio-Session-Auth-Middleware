@@ -36,6 +36,7 @@
         "webmozart/assert": "^1.11",
         "psr/container": "^1.0",
         "mezzio/mezzio-router": "^3.17",
-        "marcel-maqsood/database-connector": "^1.0"
+        "marcel-maqsood/database-connector": "^1.0",
+        "laminas/laminas-diactoros": "^3.3"
     }
 }

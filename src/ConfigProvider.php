@@ -28,6 +28,7 @@ class ConfigProvider
             'factories' => [
                 SessionAuthMiddleware::class => SessionAuthMiddlewareFactory::class,
                 LoginHandler\GlobalLoginHandler::class => LoginHandler\GlobalLoginHandlerFactory::class,
+                LogoutHandler\LogoutHandler::class => LogoutHandler\LogoutHandlerFactory::class,
             ],
         ];
     }
