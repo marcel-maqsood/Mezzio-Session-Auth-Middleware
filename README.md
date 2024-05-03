@@ -33,6 +33,15 @@ This fullfils multiple purposes:
 You can find our default configuration in ```config\autoload\authentication.global.php``` and drop it into your applications ```config\autoload\``` folder.
 It contains every configuration needed to run our SessionAuthMiddleware and can easily be copied and adjusted..
 
+
+Also, you have to add the ```Mezzio\Session\SessionMiddleware``` to your pipeline (```config\pipeline.php```), it must be included in the very top of the Pipeline:
+``` 
+$app->pipe(ErrorHandler::class);
+$app->pipe(ServerUrlMiddleware::class);
+$app->pipe(SessionMiddleware::class); // <<<<<-----
+```
+
+
 For ease of use, we also include a basic database-sql file that contains every table and field that this middleware needs (built like the defaults described in this doc).
 You find it in ```db\base.sql```, we also included a MySQLWorkbench file ```db\SQL-model.mwb```so that you can adjust it to fit your needs without having to reconstruct it.
 
@@ -94,6 +103,11 @@ Our LoginHandler needs exactly that syntax to work properly.
 The 'routename' (like: 'authorizedPage') of each route is also its permission; so for every route that you define, you have to add a permission inside the database and connect it to the desired groups.
 However this only applies to routes that our Middleware is invloved, any other route doesn't have to be added within the database.
 
+Also, you have to provide a template named "Login.html.twig" within your  '```src\App\src\templates\app```' folder, it is used by our GlobalLoginHandler to render the login form.
+
+We provide you a basic login form, named ```Login.html.twig``` within ```src\Templating\```.
+
+
 
 #### Logout Handlers ####
 We provide you a default LogoutHandler which just removes the UserInterface from the request's session and redirect the request towards your home route.
@@ -123,7 +137,7 @@ We already included it within our ```config\dependencies.global.php```.
 
 
 
-##### <a id="auth">Within the 'authentication' entry, we define specific attribites for our Session-Auth Middleware/a>
+##### <a id="auth">Within the 'authentication' entry, we define specific attribites for our Session-Auth Middleware:</a>
 ```
 'authentication' => [
     'redirect' => '/', //- The Link at which unauthorized request get redirect (As of PHPSession), however, the SessionAuthMiddleware won't use it.
