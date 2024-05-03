@@ -10,7 +10,7 @@ use Psr\Http\Server\RequestHandlerInterface;
 use Mezzio\Authentication\Session\PhpSession;
 use Mezzio\Helper\UrlHelper;
 use MazeDEV\DatabaseConnector\PersistentPDO;
-use Authorized\Middleware\SessionAuthMiddleware;
+use MazeDEV\SessionAuth\SessionAuthMiddleware;
 use Mezzio\Authentication\Exception;
 
 class GlobalLoginHandlerFactory
