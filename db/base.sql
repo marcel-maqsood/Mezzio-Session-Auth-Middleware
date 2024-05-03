@@ -8,19 +8,19 @@ SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 
 -- -----------------------------------------------------
--- Schema report_portal
+-- Schema repository
 -- -----------------------------------------------------
 
 -- -----------------------------------------------------
--- Schema report_portal
+-- Schema repository
 -- -----------------------------------------------------
-CREATE SCHEMA IF NOT EXISTS `report_portal` DEFAULT CHARACTER SET utf8 ;
-USE `report_portal` ;
+CREATE SCHEMA IF NOT EXISTS `repository` DEFAULT CHARACTER SET utf8 ;
+USE `repository` ;
 
 -- -----------------------------------------------------
--- Table `report_portal`.`logins`
+-- Table `repository`.`logins`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `report_portal`.`logins` (
+CREATE TABLE IF NOT EXISTS `repository`.`logins` (
   `loginId` INT NOT NULL AUTO_INCREMENT,
   `username` VARCHAR(45) NOT NULL,
   `passwordhash` VARCHAR(72) NOT NULL,
@@ -34,9 +34,9 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `report_portal`.`login_groups`
+-- Table `repository`.`login_groups`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `report_portal`.`login_groups` (
+CREATE TABLE IF NOT EXISTS `repository`.`login_groups` (
   `groupId` INT NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(45) NOT NULL,
   PRIMARY KEY (`groupId`),
@@ -46,9 +46,9 @@ ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `report_portal`.`permissions`
+-- Table `repository`.`permissions`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `report_portal`.`permissions` (
+CREATE TABLE IF NOT EXISTS `repository`.`permissions` (
   `permissionId` INT NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(45) NULL,
   `value` VARCHAR(45) NULL,
@@ -59,16 +59,16 @@ CREATE TABLE IF NOT EXISTS `report_portal`.`permissions` (
   INDEX `fk_permissions_permissions1_idx` (`noPermFallback` ASC),
   CONSTRAINT `fk_permissions_permissions1`
     FOREIGN KEY (`noPermFallback`)
-    REFERENCES `report_portal`.`permissions` (`permissionId`)
+    REFERENCES `repository`.`permissions` (`permissionId`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `report_portal`.`group_has_permissions`
+-- Table `repository`.`group_has_permissions`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `report_portal`.`group_has_permissions` (
+CREATE TABLE IF NOT EXISTS `repository`.`group_has_permissions` (
   `ghpId` INT NOT NULL AUTO_INCREMENT,
   `permissionId` INT NOT NULL,
   `groupId` INT NOT NULL,
@@ -78,21 +78,21 @@ CREATE TABLE IF NOT EXISTS `report_portal`.`group_has_permissions` (
   INDEX `fk_group_has_permissions_groups1_idx` (`groupId` ASC),
   CONSTRAINT `fk_group_has_permissions_permissions1`
     FOREIGN KEY (`permissionId`)
-    REFERENCES `report_portal`.`permissions` (`permissionId`)
+    REFERENCES `repository`.`permissions` (`permissionId`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_group_has_permissions_groups1`
     FOREIGN KEY (`groupId`)
-    REFERENCES `report_portal`.`login_groups` (`groupId`)
+    REFERENCES `repository`.`login_groups` (`groupId`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
 
 
 -- -----------------------------------------------------
--- Table `report_portal`.`login_has_groups`
+-- Table `repository`.`login_has_groups`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `report_portal`.`login_has_groups` (
+CREATE TABLE IF NOT EXISTS `repository`.`login_has_groups` (
   `lhgId` INT NOT NULL AUTO_INCREMENT,
   `groupId` INT NOT NULL,
   `loginId` INT NOT NULL,
@@ -102,12 +102,12 @@ CREATE TABLE IF NOT EXISTS `report_portal`.`login_has_groups` (
   INDEX `fk_login_has_groups_logins1_idx` (`loginId` ASC),
   CONSTRAINT `fk_login_has_groups_groups1`
     FOREIGN KEY (`groupId`)
-    REFERENCES `report_portal`.`login_groups` (`groupId`)
+    REFERENCES `repository`.`login_groups` (`groupId`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_login_has_groups_logins1`
     FOREIGN KEY (`loginId`)
-    REFERENCES `report_portal`.`logins` (`loginId`)
+    REFERENCES `repository`.`logins` (`loginId`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
