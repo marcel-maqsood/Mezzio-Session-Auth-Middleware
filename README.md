@@ -173,8 +173,7 @@ As this is a authentication handler, we also want to check if a user has the per
 - Definition of a fallback permission (route) if the user does not have permission on its current route and should be redirected towards another route.
 
 
-##### <a id="tables">Rechte Management</a>
-Default permission-table definition within any global or local config.php (located in ```config\autoload\```):
+Default table definition within any global or local config.php (located in ```config\autoload\```):
 ```
 return [
     'tables' => [
