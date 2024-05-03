@@ -75,7 +75,7 @@ class GlobalLoginHandler implements RequestHandlerInterface
         $routeResult = $request->getAttribute(RouteResult::class);
         $this->currentRoute = $routeResult->getMatchedRouteName();
 
-        foreach($loginHandlingConfig as $key => $data)
+        foreach($this->loginHandlingConfig as $key => $data)
         {
             if($this->currentRoute == $key)
             {
