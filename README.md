@@ -37,6 +37,9 @@ For ease of use, we also include a basic database-sql file that contains every t
 You find it in ```db\base.sql```, we also included a MySQLWorkbench file ```db\SQL-model.mwb```so that you can adjust it to fit your needs without having to reconstruct it.
 
 
+Also: our SessionAuthMiddleware doesn't allow for multi-logons per account, we implemented features that prevent that on purpose as we think its the safest approach to logoff any other device and telling them they have been logged out.
+You just have to use the variable "error" (as iterable) within your template to display any error that occoured.
+
 #### LoginHandlers ####
 To provide you with a working LoginHandler, we included one that is capable of all features that this doc meantions, you can find it in
 ```src\LoginHandler\GlobalLoginHandler.php```
@@ -127,11 +130,15 @@ We already included it within our ```config\dependencies.global.php```.
     'username' => 'username', //- The key in which the username is within $_POST. default: 'username'
     'password' => 'password', //- The key in which the password is within $_POST. default: 'password'
     'repository' => [ //- An array, in which the details for our database-table are.
-        'table' => 'logins', //- The table, in which we look for the user.  default: 'logins'
+        'table' => 'login', //- The table, in which we look for the user.  default: 'logins'
         'fields' => [ //- An array in which the fields of that table are to authenticate a user.
             'identity' => 'username', //- The key, with which we look in our table for the username given in $_POST. default: 'username'
             'password' => 'anyPass' //- The key, with which we check if the password in $_POST is equal.
-        ]
+        ],
+        'table_override' => [ // - An array, in which we define routes and their database-table prefix that the system will use tot check if they start with the key of any entry.
+            'user'  => 'user', // Routename starts with 'user' => use table prefix 'user' : user - for base table, user_permissions for all permissions that only user-groups can have, etc.
+            'admin' => 'admin',
+        ],
     ],
     'security' => [ //- An array for our security features.
         'algo' => 'sha-256', //- The algorithm used for generating the SessionHash stored in the database. default: 'sha-256'
@@ -143,6 +150,8 @@ We already included it within our ```config\dependencies.global.php```.
     ]
 ]
 ```
+
+if the key ```'table_override'``` is not set within ```'repository'```, the system will only use the ```'table'``` value set in ```'repository'``` to map to a table.
 
 Our SessionAuthMiddleware also requires this config entry:
 ```
@@ -169,13 +178,35 @@ Default permission-table definition within any global or local config.php (locat
 ```
 return [
     'tables' => [
-        'permissions' => [
-            'tableName' => 'permissions',
+        'user' => [
+            'tableName' => 'users',
+            'identifier' => 'loginId',
+            'loginName' => 'username'
+        ],
+        'user_group_relation' => [
+            'tableName' => 'user_has_groups',
+            'identifier' => 'lhgId',
+            'group_identifier' => 'groupId',
+            'login_identifier' => 'loginId',
+        ],
+        'user_groups' => [
+            'tableName' => 'user_groups',
+            'identifier' => 'groupId',
+            'name' => 'name',
+        ],
+        'user_permissions' => [
+            'tableName' => 'user_permissions',
             'identifier' => 'permissionId',
             'name' => 'name',
             'value' => 'value',
             'noPermFallback' => 'noPermFallback',
             'allowBypass' => 'allowBypass'
+        ],
+        'user_group_permission_relation' => [
+            'tableName' => 'user_group_has_permissions',
+            'identifier' => 'ghpId',
+            'permission_identifier' => 'permissionId',
+            'group_identifier' => 'groupId',
         ],
     ]
 ]

@@ -25,12 +25,15 @@ class PDORepository implements UserRepositoryInterface
     private $authConfig;
     private $config;
 
+    private $tableConfig;
+
     private $userFactory;
 
     public function __construct(
         PersistentPDO $persistentPDO,
         array $authConfig,
         array $config,
+        array $tableConfig,
         callable $userFactory
     ) 
     {
@@ -38,6 +41,7 @@ class PDORepository implements UserRepositoryInterface
         $this->pdo = $persistentPDO->getPDO();
         $this->config = $config;
         $this->authConfig = $authConfig;
+        $this->tableConfig = $tableConfig;
 
         // Provide type safety for the composed user factory.
         $this->userFactory = static function (
@@ -63,7 +67,7 @@ class PDORepository implements UserRepositoryInterface
             ]
         ];
         
-        $passwordHash = $this->persistentPDO->get($this->config['fields']['password'], $this->config['table'], $conditions);
+        $passwordHash = $this->persistentPDO->get($this->config['fields']['password'], $this->tableConfig[$this->config['table']]['tableName'], $conditions);
 
         if($passwordHash === null || $passwordHash === "")
         {

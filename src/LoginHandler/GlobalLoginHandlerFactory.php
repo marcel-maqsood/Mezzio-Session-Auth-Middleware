@@ -27,11 +27,18 @@ class GlobalLoginHandlerFactory
                 "'loginHandling'-Config is missing in Config, please check our docs: " . $config['authdocs'] . '#user-content-loginHandling'
             );
         }
+        $tableConfig = $config['tables'] ?? null;
+        if ($tableConfig === null) 
+        {
+            throw new Exception\InvalidConfigException(
+                "'tables'-Config is missing in Config, please check our docs: " . $config['authdocs'] . '#user-content-tables'
+            );
+        }
 
         $template = $container->has(TemplateRendererInterface::class)
             ? $container->get(TemplateRendererInterface::class)
             : null;
 
-        return new GlobalLoginHandler($template, $container->get(PhpSession::class), $container->get(UrlHelper::class), $config['authentication'], $loginHandlingConfig, $container->get(SessionAuthMiddleware::class), $container->get(PersistentPDO::class));
+        return new GlobalLoginHandler($template, $container->get(PhpSession::class), $container->get(UrlHelper::class), $config['authentication'], $loginHandlingConfig, $tableConfig, $container->get(SessionAuthMiddleware::class), $container->get(PersistentPDO::class));
     }
 }

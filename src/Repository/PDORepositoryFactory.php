@@ -55,8 +55,16 @@ class PDORepositoryFactory
             );
         }
 
+        $tableConfig = $config['tables'] ?? null;
+        if($tableConfig === null)
+        {
+            throw new Exception\InvalidConfigException(
+                "'tables' Config is missing, please check our docs: " . $config['docs'] . '#user-content-tables'
+            );
+        }
+
         $user = $container->get(UserInterface::class);
 
-        return new PDORepository($container->get(PersistentPDO::class), $authConfig, $repositoryConfig, $user);
+        return new PDORepository($container->get(PersistentPDO::class), $authConfig, $repositoryConfig, $tableConfig, $user);
     }
 }

@@ -20,7 +20,7 @@ USE `repository` ;
 -- -----------------------------------------------------
 -- Table `repository`.`logins`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `repository`.`logins` (
+CREATE TABLE IF NOT EXISTS `repository`.`users` (
   `loginId` INT NOT NULL AUTO_INCREMENT,
   `username` VARCHAR(45) NOT NULL,
   `passwordhash` VARCHAR(72) NOT NULL,
@@ -36,7 +36,7 @@ ENGINE = InnoDB;
 -- -----------------------------------------------------
 -- Table `repository`.`login_groups`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `repository`.`login_groups` (
+CREATE TABLE IF NOT EXISTS `repository`.`user_groups` (
   `groupId` INT NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(45) NOT NULL,
   PRIMARY KEY (`groupId`),
@@ -48,7 +48,7 @@ ENGINE = InnoDB;
 -- -----------------------------------------------------
 -- Table `repository`.`permissions`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `repository`.`permissions` (
+CREATE TABLE IF NOT EXISTS `repository`.`user_permissions` (
   `permissionId` INT NOT NULL AUTO_INCREMENT,
   `name` VARCHAR(45) NULL,
   `value` VARCHAR(45) NULL,
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS `repository`.`permissions` (
   INDEX `fk_permissions_permissions1_idx` (`noPermFallback` ASC),
   CONSTRAINT `fk_permissions_permissions1`
     FOREIGN KEY (`noPermFallback`)
-    REFERENCES `repository`.`permissions` (`permissionId`)
+    REFERENCES `repository`.`user_permissions` (`permissionId`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
@@ -68,7 +68,7 @@ ENGINE = InnoDB;
 -- -----------------------------------------------------
 -- Table `repository`.`group_has_permissions`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `repository`.`group_has_permissions` (
+CREATE TABLE IF NOT EXISTS `repository`.`user_group_has_permissions` (
   `ghpId` INT NOT NULL AUTO_INCREMENT,
   `permissionId` INT NOT NULL,
   `groupId` INT NOT NULL,
@@ -78,12 +78,12 @@ CREATE TABLE IF NOT EXISTS `repository`.`group_has_permissions` (
   INDEX `fk_group_has_permissions_groups1_idx` (`groupId` ASC),
   CONSTRAINT `fk_group_has_permissions_permissions1`
     FOREIGN KEY (`permissionId`)
-    REFERENCES `repository`.`permissions` (`permissionId`)
+    REFERENCES `repository`.`user_permissions` (`permissionId`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_group_has_permissions_groups1`
     FOREIGN KEY (`groupId`)
-    REFERENCES `repository`.`login_groups` (`groupId`)
+    REFERENCES `repository`.`user_groups` (`groupId`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;
@@ -92,7 +92,7 @@ ENGINE = InnoDB;
 -- -----------------------------------------------------
 -- Table `repository`.`login_has_groups`
 -- -----------------------------------------------------
-CREATE TABLE IF NOT EXISTS `repository`.`login_has_groups` (
+CREATE TABLE IF NOT EXISTS `repository`.`user_has_groups` (
   `lhgId` INT NOT NULL AUTO_INCREMENT,
   `groupId` INT NOT NULL,
   `loginId` INT NOT NULL,
@@ -102,12 +102,12 @@ CREATE TABLE IF NOT EXISTS `repository`.`login_has_groups` (
   INDEX `fk_login_has_groups_logins1_idx` (`loginId` ASC),
   CONSTRAINT `fk_login_has_groups_groups1`
     FOREIGN KEY (`groupId`)
-    REFERENCES `repository`.`login_groups` (`groupId`)
+    REFERENCES `repository`.`user_groups` (`groupId`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION,
   CONSTRAINT `fk_login_has_groups_logins1`
     FOREIGN KEY (`loginId`)
-    REFERENCES `repository`.`logins` (`loginId`)
+    REFERENCES `repository`.`user` (`loginId`)
     ON DELETE NO ACTION
     ON UPDATE NO ACTION)
 ENGINE = InnoDB;

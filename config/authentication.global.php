@@ -14,7 +14,7 @@ return [
         'username' => 'username', //- The key in which the username is within $_POST. default: 'username'
         'password' => 'password', //- The key in which the password is within $_POST. default: 'password'
         'repository' => [ //- An array, in which the details for our database-table are.
-            'table' => 'logins', //- The table, in which we look for the user.  default: 'logins'
+            'table' => 'login', //- The table, in which we look for the user.  default: 'logins'
             'fields' => [ //- An array in which the fields of that table are to authenticate a user.
                 'identity' => 'username', //- The key, with which we look in our table for the username given in $_POST. default: 'username'
                 'password' => 'anyPass' //- The key, with which we check if the password in $_POST is equal.
@@ -26,7 +26,11 @@ return [
             'fields' => [ //- An array, in which we define session related fields within our 'logins' table to be used to check if the session is valid.
                 'session' => 'sessionhash', //- The key which we use to get the users current session-hash and check if it matches the request. default: 'sessionhash'
                 'stamp' => 'sessionstart' //- The key which we use to get the session-start of the current session to check if it is still valid. default: 'sessionstart'
-            ]
+            ],
+            'table_override' => [ // - An array, in which we define routes and their database-table prefix that the system will use tot check if they start with the key of any entry.
+                'user'  => 'user', // Routename starts with 'user' => use table prefix 'user' : user - for base table, user_permissions for all permissions that only user-groups can have, etc.
+                'admin' => 'admin',
+            ],
         ]
     ],
     'loginHandling' => [
@@ -47,13 +51,35 @@ return [
         ]
     ],
     'tables' => [
-        'permissions' => [
-            'tableName' => 'permissions',
+        'user' => [
+            'tableName' => 'users',
+            'identifier' => 'loginId',
+            'loginName' => 'username'
+        ],
+        'user_group_relation' => [
+            'tableName' => 'user_has_groups',
+            'identifier' => 'lhgId',
+            'group_identifier' => 'groupId',
+            'login_identifier' => 'loginId',
+        ],
+        'user_groups' => [
+            'tableName' => 'user_groups',
+            'identifier' => 'groupId',
+            'name' => 'name',
+        ],
+        'user_permissions' => [
+            'tableName' => 'user_permissions',
             'identifier' => 'permissionId',
             'name' => 'name',
             'value' => 'value',
             'noPermFallback' => 'noPermFallback',
             'allowBypass' => 'allowBypass'
+        ],
+        'user_group_permission_relation' => [
+            'tableName' => 'user_group_has_permissions',
+            'identifier' => 'ghpId',
+            'permission_identifier' => 'permissionId',
+            'group_identifier' => 'groupId',
         ],
     ],
     'messages' => [

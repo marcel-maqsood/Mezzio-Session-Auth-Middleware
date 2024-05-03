@@ -66,6 +66,20 @@ class SessionAuthMiddleware implements MiddlewareInterface
         $routeResult = $request->getAttribute(RouteResult::class);
         $this->currentRoute = $routeResult->getMatchedRouteName();
 
+        if(isset($this->authConfig['repository']['table_override']))
+        {
+            foreach($this->authConfig['repository']['table_override'] as $routePrefix => $table)
+            {
+                if(str_starts_with($this->currentRoute, $routePrefix))
+                {
+                    $this->authConfig['repository']['table'] = $table;
+                    break;
+                }
+            }
+        }
+        $this->permissionManager->setTablePrefix($this->authConfig['repository']['table']);
+        $this->permissionManager->fetchData();
+        
         $redirect = $this->handleAuth($request->getAttribute('session'));
 
         if($this->errorMessage !== null)
@@ -146,7 +160,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
             return false;
         }
 
-        $dbRow = $this->persistentPDO->get('*', $this->authConfig['repository']['table'], $this->userConditions);
+        $dbRow = $this->persistentPDO->get('*', $this->tableConfig[$this->authConfig['repository']['table']]['tableName'], $this->userConditions);
 
         $sessionStamp = $dbRow == null ? null : $dbRow->{$this->securityFields['stamp']};
 

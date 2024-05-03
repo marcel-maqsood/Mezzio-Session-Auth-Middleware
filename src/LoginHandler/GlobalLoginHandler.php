@@ -45,6 +45,7 @@ class GlobalLoginHandler implements RequestHandlerInterface
 
     private $config;
     private $loginHandlingConfig;
+    private $tableConfig;
     private $repoFields;
     private $securityFields;
     private $sessionAuth;
@@ -55,7 +56,7 @@ class GlobalLoginHandler implements RequestHandlerInterface
 
     private $loginUrl;
 
-    public function __construct(TemplateRendererInterface $renderer, PhpSession $adapter, UrlHelper $urlHelper, $config, $loginHandlingConfig, $sessionAuth, PersistentPDO $persistentPDO)
+    public function __construct(TemplateRendererInterface $renderer, PhpSession $adapter, UrlHelper $urlHelper, $config, $loginHandlingConfig, $tableConfig, $sessionAuth, PersistentPDO $persistentPDO)
     {
         $this->renderer = $renderer;
         $this->adapter = $adapter;
@@ -66,6 +67,7 @@ class GlobalLoginHandler implements RequestHandlerInterface
         $this->securityFields = $config['security']['fields'];
         $this->sessionAuth = $sessionAuth;
         $this->persistentPDO = $persistentPDO;
+        $this->tableConfig = $tableConfig;
     }
     public function handle(ServerRequestInterface $request) : ResponseInterface
     {
@@ -127,12 +129,12 @@ class GlobalLoginHandler implements RequestHandlerInterface
                 ]
             ];
 
-            if(!$this->persistentPDO->update( $this->config['repository']['table'], $updates, $userConditions))
+            if(!$this->persistentPDO->update($this->tableConfig[$this->config['repository']['table']]['tableName'], $updates, $userConditions))
             {
                 //There was an issue with our db communication, thus we won't auth this request, it will be send back to our login form.
                 $session->unset(UserInterface::class);
                 return new HtmlResponse($this->renderer->render(
-                    'app::ManagerLogin',
+                    'app::Login',
                     ['error' => 'Looks like we ran into some issues; please try again.', 'handler' => $this->loginTitleName]
                 ));
             }
@@ -142,7 +144,7 @@ class GlobalLoginHandler implements RequestHandlerInterface
  
         // Login failed
         return new HtmlResponse($this->renderer->render(
-            'app::ManagerLogin',
+            'app::Login',
             ['error' => 'Invalid credentials; please try again', 'handler' => $this->loginTitleName]
         ));
     }
