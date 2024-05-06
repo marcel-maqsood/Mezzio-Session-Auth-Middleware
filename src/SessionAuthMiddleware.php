@@ -72,8 +72,6 @@ class SessionAuthMiddleware implements MiddlewareInterface
         $routeResult = $request->getAttribute(RouteResult::class);
         $this->currentRoute = $routeResult->getMatchedRouteName();
 
-        $this->fallbackRoute = $this->permissionManager->getFallbackRoute($this->currentRoute);
-
         if(isset($this->authConfig['repository']['table_override']))
         {
             foreach($this->authConfig['repository']['table_override'] as $routePrefix => $table)
@@ -85,8 +83,11 @@ class SessionAuthMiddleware implements MiddlewareInterface
                 }
             }
         }
+
         $this->permissionManager->setTablePrefix($this->authConfig['repository']['table']);
         $this->permissionManager->fetchData();
+
+        $this->fallbackRoute = $this->permissionManager->getFallbackRoute($this->currentRoute);
         
         $redirect = $this->handleAuth($request->getAttribute('session'));
 
