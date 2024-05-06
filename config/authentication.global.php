@@ -11,6 +11,7 @@ return [
     ],
     'authentication' => [
         'redirect' => '/', //- The Link at which unauthorized request get redirect (As of PHPSession), however, the SessionAuthMiddleware won't use it.
+        'allowWildcard' => true,
         'username' => 'username', //- The key in which the username is within $_POST. default: 'username'
         'password' => 'password', //- The key in which the password is within $_POST. default: 'password'
         'repository' => [ //- An array, in which the details for our database-table are.

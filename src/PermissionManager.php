@@ -15,11 +15,13 @@ class PermissionManager
 
     private PersistentPDO $persistentPDO;
     private array $tableConfig;
+    private array $authConfig;
 
-    public function __construct(PersistentPDO $persistentPDO, array $tableConfig)
+    public function __construct(PersistentPDO $persistentPDO, array $tableConfig, array $authConfig)
     {
         $this->persistentPDO = $persistentPDO;
         $this->tableConfig = $tableConfig;
+        $this->authConfig = $authConfig;
     }
 
     public function fetchData()
@@ -149,7 +151,13 @@ class PermissionManager
 
     public function userHasPermission(string $permission): bool
     {
-        if($this->isBypassable($permission))
+        if($this->isBypassable($permission) 
+        ||  (
+                isset($this->authConfig['allowWildcard']) 
+                && $this->authConfig['allowWildcard'] === true 
+                && in_array('*', $this->mergedPermissions)
+            )
+        )
         {
             return true;
         }
