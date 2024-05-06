@@ -64,8 +64,6 @@ class SessionAuthMiddleware implements MiddlewareInterface
     {
         $this->referer = $request->getHeaderLine('Referer');
 
-        $this->fallbackRoute = $this->permissionManager->getFallbackRoute($this->currentRoute);
-
         if(!$this->isRefererInternal($request))
         {
             $this->referer = null;
@@ -73,6 +71,8 @@ class SessionAuthMiddleware implements MiddlewareInterface
 
         $routeResult = $request->getAttribute(RouteResult::class);
         $this->currentRoute = $routeResult->getMatchedRouteName();
+
+        $this->fallbackRoute = $this->permissionManager->getFallbackRoute($this->currentRoute);
 
         if(isset($this->authConfig['repository']['table_override']))
         {
