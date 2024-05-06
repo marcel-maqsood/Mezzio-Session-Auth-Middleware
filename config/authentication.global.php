@@ -55,7 +55,8 @@ return [
         'user' => [
             'tableName' => 'users',
             'identifier' => 'loginId',
-            'loginName' => 'username'
+            'loginName' => 'username',
+            'display' => 'hidden'
         ],
         'user_group_relation' => [
             'tableName' => 'user_has_groups',
@@ -67,6 +68,7 @@ return [
             'tableName' => 'user_groups',
             'identifier' => 'groupId',
             'name' => 'name',
+            'display' => 'hidden'
         ],
         'user_permissions' => [
             'tableName' => 'user_permissions',
@@ -74,7 +76,8 @@ return [
             'name' => 'name',
             'value' => 'value',
             'noPermFallback' => 'noPermFallback',
-            'allowBypass' => 'allowBypass'
+            'allowBypass' => 'allowBypass',
+            'display' => 'hidden'
         ],
         'user_group_permission_relation' => [
             'tableName' => 'user_group_has_permissions',

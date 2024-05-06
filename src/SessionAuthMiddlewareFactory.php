@@ -52,6 +52,15 @@ class SessionAuthMiddlewareFactory
             );
         }
 
-        return new SessionAuthMiddleware($container->get(PersistentPDO::class), $container->get(UrlHelper::class), $authenticationConfig, $config['session']['config'], $messages, $tableConfig);
+        $loginHandlingConfig = $config['loginHandling'] ?? null;
+
+        if ($loginHandlingConfig === null)
+        {
+            throw new Exception\InvalidConfigException(
+                "'loginHandling'-Config is missing in Config, please check our docs: " . $config['authdocs'] . '#user-content-loginHandling'
+            );
+        }
+
+        return new SessionAuthMiddleware($container->get(PersistentPDO::class), $container->get(UrlHelper::class), $authenticationConfig, $config['session']['config'], $messages, $tableConfig, $loginHandlingConfig);
     }
 }

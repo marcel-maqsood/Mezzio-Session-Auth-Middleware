@@ -49,6 +49,8 @@ You find it in ```db\base.sql```, we also included a MySQLWorkbench file ```db\S
 Also: our SessionAuthMiddleware doesn't allow for multi-logons per account, we implemented features that prevent that on purpose as we think its the safest approach to logoff any other device and telling them they have been logged out.
 You just have to use the variable "error" (as iterable) within your template to display any error that occoured.
 
+Permissions, Groups and even Logins can be flagged as "hidden" within the database, that way, you can prevent them from beeing rendered in lists, so that nobody can use these to add them to users / groups, if they dont have direct access on your database.
+
 #### LoginHandlers ####
 To provide you with a working LoginHandler, we included one that is capable of all features that this doc meantions, you can find it in
 ```src\LoginHandler\GlobalLoginHandler.php```
@@ -97,7 +99,8 @@ Our GlobalLoginHandler is capable of redirecting logins from different login-for
     //...
 ],
 ```
-Our LoginHandler needs exactly that syntax to work properly.
+Our LoginHandler and SessionAuthMiddleware need exactly that syntax to work properly.
+If you don't define loginHandling, the SessionAuthMiddleware won't be able to detect the routes and where they belong to.
 
 #### Keep in mind: ####
 The 'routename' (like: 'authorizedPage') of each route is also its permission; so for every route that you define, you have to add a permission inside the database and connect it to the desired groups.
@@ -185,6 +188,7 @@ As this is a authentication handler, we also want to check if a user has the per
 - Redirecting from login-form towards a page if the user has permissions to that page.
 - Permissions can be marked as "allowBypass" which grants the user the same right as having the permission, like for routes that should always be accessabile but defined to use as fallback.
 - Definition of a fallback permission (route) if the user does not have permission on its current route and should be redirected towards another route.
+- You can define permissions with value "*" (asteriks) to grant a group all permissions.
 
 
 Default table definition within any global or local config.php (located in ```config\autoload\```):
@@ -194,7 +198,8 @@ return [
         'user' => [
             'tableName' => 'users',
             'identifier' => 'loginId',
-            'loginName' => 'username'
+            'loginName' => 'username',
+            'display' = 'hidden'
         ],
         'user_group_relation' => [
             'tableName' => 'user_has_groups',
@@ -206,6 +211,7 @@ return [
             'tableName' => 'user_groups',
             'identifier' => 'groupId',
             'name' => 'name',
+            'display' = 'hidden'
         ],
         'user_permissions' => [
             'tableName' => 'user_permissions',
@@ -213,7 +219,8 @@ return [
             'name' => 'name',
             'value' => 'value',
             'noPermFallback' => 'noPermFallback',
-            'allowBypass' => 'allowBypass'
+            'allowBypass' => 'allowBypass',
+            'display' = 'hidden'
         ],
         'user_group_permission_relation' => [
             'tableName' => 'user_group_has_permissions',

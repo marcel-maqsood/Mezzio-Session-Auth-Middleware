@@ -34,9 +34,13 @@ class SessionAuthMiddleware implements MiddlewareInterface
 
     private $authConfig;
 
+    private $loginHandlingConfig;
+
     private PermissionManager $permissionManager;
 
-    public function __construct(PersistentPDO $persistentPDO, $urlHelper, array $authConfig, array $sessionConfig, array $messages, array $tableConfig)
+    private $fallbackRoute;
+
+    public function __construct(PersistentPDO $persistentPDO, $urlHelper, array $authConfig, array $sessionConfig, array $messages, array $tableConfig, array $loginHandlingConfig)
     {
         $this->urlHelper = $urlHelper;
         $this->persistentPDO = $persistentPDO;
@@ -46,7 +50,8 @@ class SessionAuthMiddleware implements MiddlewareInterface
         $this->sessionConfig = $sessionConfig;
         $this->messages = $messages;
         $this->tableConfig = $tableConfig;
-        $this->permissionManager = new PermissionManager($persistentPDO, $tableConfig, $authConfig);
+        $this->loginHandlingConfig = $loginHandlingConfig;
+        $this->permissionManager = new PermissionManager($this->persistentPDO, $this->tableConfig);
     }
 
     function isRefererInternal(ServerRequestInterface $request) : bool
@@ -58,6 +63,9 @@ class SessionAuthMiddleware implements MiddlewareInterface
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler) : ResponseInterface
     {
         $this->referer = $request->getHeaderLine('Referer');
+
+        $this->fallbackRoute = $this->permissionManager->getFallbackRoute($this->currentRoute);
+
         if(!$this->isRefererInternal($request))
         {
             $this->referer = null;
@@ -89,17 +97,15 @@ class SessionAuthMiddleware implements MiddlewareInterface
 
         $isLoginRoute = false;
         $loginTarget = "";
-        switch($this->currentRoute)
-        {
-            case "managementLogin":
-                $loginTarget = 'managementPage';
-                $isLoginRoute = true;
-            break;
 
-            case "adminLogin":
-                $loginTarget = 'adminPage';
+        foreach($this->loginHandlingConfig as $key => $data)
+        {
+            if($this->currentRoute == $key)
+            {
+                $loginTarget = $data['destination'];
                 $isLoginRoute = true;
-            break;
+                break;
+            }
         }
 
         if($isLoginRoute)
@@ -125,10 +131,9 @@ class SessionAuthMiddleware implements MiddlewareInterface
     ) : ResponseInterface|null
     {
         //If the given route is not defined as a permission within our database, we redirect it to "home".
-        $fallback = $this->permissionManager->getFallbackRoute($this->currentRoute) ?? 'home';
 
 
-        $loginUrl = $this->urlHelper->generate($fallback);
+        $loginUrl = $this->urlHelper->generate($this->fallbackRoute);
         if (!$session->has(UserInterface::class)) 
         {
             $this->errorMessage = $this->messages['error']['admin-logon-required-error'];
@@ -199,8 +204,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
             }
             //"return false" will redirect towards "/", which happens if the user doesn't have the permission for the requested route.
             //best case, we should redirect them to their respective Dashboard and maybe display a permission error.
-            $fallback = $this->permissionManager->getFallbackRoute($this->currentRoute) ?? 'home';
-            return new RedirectResponse($this->urlHelper->generate($fallback));
+            return new RedirectResponse($this->urlHelper->generate($this->fallbackRoute));
         }
 
         //the request contains our current session fingerprint so we letting it pass

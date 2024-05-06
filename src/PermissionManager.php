@@ -186,7 +186,7 @@ class PermissionManager
             return $this->allPermissions[$permission][$this->tableConfig[$this->getTablePrefix() . 'permissions']['value']];
         }
 
-        return null;
+        return "home";
     }
 
     public function getUserId($loginName) : string
