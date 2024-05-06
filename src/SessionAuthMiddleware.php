@@ -51,7 +51,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
         $this->messages = $messages;
         $this->tableConfig = $tableConfig;
         $this->loginHandlingConfig = $loginHandlingConfig;
-        $this->permissionManager = new PermissionManager($this->persistentPDO, $this->tableConfig);
+        $this->permissionManager = new PermissionManager($persistentPDO, $tableConfig, $authConfig);
     }
 
     function isRefererInternal(ServerRequestInterface $request) : bool
