@@ -9,6 +9,7 @@ use DI\Container as PHPDIContainer;
 use Laminas\Diactoros\Response\HtmlResponse;
 use Laminas\Diactoros\Response\JsonResponse;
 use Laminas\ServiceManager\ServiceManager;
+use MazeDEV\SessionAuth\SessionAuthMiddleware;
 use Mezzio\LaminasView\LaminasViewRenderer;
 use Mezzio\Plates\PlatesRenderer;
 use Mezzio\Router\FastRouteRouter;
@@ -23,7 +24,7 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Laminas\Diactoros\Response\RedirectResponse;
 use Laminas\Diactoros\Uri;                      
-use Mezzio\Authentication\Session\PhpSession;    
+use Mezzio\Authentication\Session\PhpSession;
 use Mezzio\Session\SessionInterface;         
 use Mezzio\Authentication\UserInterface;     
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -36,7 +37,7 @@ class GlobalLoginHandler implements RequestHandlerInterface
     private const REDIRECT_ATTRIBUTE = 'authentication:redirect';
 
     /** @var PhpSession */
-    private $adapter;
+    private $session;
 
     /** @var TemplateRendererInterface */
     private $renderer;
@@ -56,10 +57,10 @@ class GlobalLoginHandler implements RequestHandlerInterface
 
     private $loginUrl;
 
-    public function __construct(TemplateRendererInterface $renderer, PhpSession $adapter, UrlHelper $urlHelper, $config, $loginHandlingConfig, $tableConfig, $sessionAuth, PersistentPDO $persistentPDO)
+    public function __construct(TemplateRendererInterface $renderer, PhpSession $session, UrlHelper $urlHelper, $config, $loginHandlingConfig, $tableConfig, $sessionAuth, PersistentPDO $persistentPDO)
     {
         $this->renderer = $renderer;
-        $this->adapter = $adapter;
+        $this->session = $session;
         $this->urlHelper = $urlHelper;
         $this->config = $config;
         $this->loginHandlingConfig = $loginHandlingConfig;
@@ -112,7 +113,7 @@ class GlobalLoginHandler implements RequestHandlerInterface
         SessionInterface $session
     ) : ResponseInterface 
     {
-        $user = $this->adapter->authenticate($request);
+        $user = $this->session->authenticate($request);
         if ($user) 
         {
             //This request now has a valid auth and thus, we gonna handle it.
@@ -129,7 +130,13 @@ class GlobalLoginHandler implements RequestHandlerInterface
                 ]
             ];
 
-            if(!$this->persistentPDO->update($this->tableConfig[$this->config['repository']['table']]['tableName'], $updates, $userConditions))
+            $table = SessionAuthMiddleware::$tableOverride;
+            if($table == "" || $table == null)
+            {
+                $table = $this->reporsitoryConfig['table'];
+            }
+
+            if(!$this->persistentPDO->update($this->tableConfig[$table]['tableName'], $updates, $userConditions, false))
             {
                 //There was an issue with our db communication, thus we won't auth this request, it will be send back to our login form.
                 $session->unset(UserInterface::class);

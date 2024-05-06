@@ -40,11 +40,13 @@ class SessionAuthMiddleware implements MiddlewareInterface
 
     private $fallbackRoute;
 
+    public static $tableOverride = "";
+
     public function __construct(PersistentPDO $persistentPDO, $urlHelper, array $authConfig, array $sessionConfig, array $messages, array $tableConfig, array $loginHandlingConfig)
     {
         $this->urlHelper = $urlHelper;
         $this->persistentPDO = $persistentPDO;
-        $this->authConfig = $authConfig;
+        $this->authConfig = &$authConfig;
         $this->repoFields = $authConfig['repository']['fields'];
         $this->securityFields = $authConfig['security']['fields'];
         $this->sessionConfig = $sessionConfig;
@@ -78,17 +80,17 @@ class SessionAuthMiddleware implements MiddlewareInterface
             {
                 if(str_starts_with($this->currentRoute, $routePrefix))
                 {
-                    $this->authConfig['repository']['table'] = $table;
+                    self::$tableOverride = $table;
                     break;
                 }
             }
         }
 
-        $this->permissionManager->setTablePrefix($this->authConfig['repository']['table']);
+        $this->permissionManager->setTablePrefix(self::$tableOverride);
         $this->permissionManager->fetchData();
 
         $this->fallbackRoute = $this->permissionManager->getFallbackRoute($this->currentRoute);
-        
+
         $redirect = $this->handleAuth($request->getAttribute('session'));
 
         if($this->errorMessage !== null)
@@ -166,7 +168,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
             return false;
         }
 
-        $dbRow = $this->persistentPDO->get('*', $this->tableConfig[$this->authConfig['repository']['table']]['tableName'], $this->userConditions);
+        $dbRow = $this->persistentPDO->get('*', $this->tableConfig[self::$tableOverride]['tableName'], $this->userConditions);
 
         $sessionStamp = $dbRow == null ? null : $dbRow->{$this->securityFields['stamp']};
 
@@ -264,6 +266,6 @@ class SessionAuthMiddleware implements MiddlewareInterface
             ]
         );
 
-        return hash($this->authConfig['security']['algo'], $fingerprint);
+        return hash("sha256", $fingerprint);
     }
 }

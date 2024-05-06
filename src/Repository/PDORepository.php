@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MazeDEV\SessionAuth\Repository;
 
+use MazeDEV\SessionAuth\SessionAuthMiddleware;
 use Mezzio\Authentication\Exception;
 use Mezzio\Authentication\UserInterface;
 use Mezzio\Authentication\UserRepositoryInterface;
@@ -32,14 +33,13 @@ class PDORepository implements UserRepositoryInterface
     public function __construct(
         PersistentPDO $persistentPDO,
         array $authConfig,
-        array $config,
         array $tableConfig,
         callable $userFactory
     ) 
     {
         $this->persistentPDO = $persistentPDO;
         $this->pdo = $persistentPDO->getPDO();
-        $this->config = $config;
+        $this->reporsitoryConfig = $authConfig['repository'];
         $this->authConfig = $authConfig;
         $this->tableConfig = $tableConfig;
 
@@ -57,17 +57,30 @@ class PDORepository implements UserRepositoryInterface
     /**
      * {@inheritDoc}
      */
-    public function authenticate(string $username, ?string $password = null): ?UserInterface
+    public function authenticate(string $username, ?string $password = null, ?string $currentRoute = ""): ?UserInterface
     {
 
         $conditions = [
-            $this->config['fields']['identity'] => [
+            $this->reporsitoryConfig['fields']['identity'] => [
                 'operator' => '=',
                 'queue' => $username,
             ]
         ];
-        
-        $passwordHash = $this->persistentPDO->get($this->config['fields']['password'], $this->tableConfig[$this->config['table']]['tableName'], $conditions);
+
+        $table = SessionAuthMiddleware::$tableOverride;
+        if($table == "" || $table == null)
+        {
+            $table = $this->reporsitoryConfig['table'];
+        }
+
+        $passwordHash = $this->persistentPDO->get(
+            $this->reporsitoryConfig['fields']['password'],
+            $this->tableConfig[$table]['tableName'],
+            $conditions,
+            [],
+            [],
+            false
+        );
 
         if($passwordHash === null || $passwordHash === "")
         {
@@ -93,12 +106,12 @@ class PDORepository implements UserRepositoryInterface
      */
     protected function getUserRoles(string $identity): array
     {
-        if (! isset($this->config['sql_get_roles'])) 
+        if (! isset($this->reporsitoryConfig['sql_get_roles'])) 
         {
             return [];
         }
 
-        if (false === strpos($this->config['sql_get_roles'], ':identity')) 
+        if (false === strpos($this->reporsitoryConfig['sql_get_roles'], ':identity')) 
         {
             throw new Exception\InvalidConfigException(
                 'The sql_get_roles configuration setting must include an :identity parameter'
@@ -107,7 +120,7 @@ class PDORepository implements UserRepositoryInterface
 
         try 
         {
-            $stmt = $this->pdo->prepare($this->config['sql_get_roles']);
+            $stmt = $this->pdo->prepare($this->reporsitoryConfig['sql_get_roles']);
         } 
         catch (PDOException $e) 
         {
@@ -139,14 +152,14 @@ class PDORepository implements UserRepositoryInterface
 
     protected function getUserDetails(string $identity): array
     {
-        if (! isset($this->config['sql_get_details'])) 
+        if (! isset($this->reporsitoryConfig['sql_get_details'])) 
         {
             return [];
         }
 
-        Assert::string($this->config['sql_get_details']);
+        Assert::string($this->reporsitoryConfig['sql_get_details']);
 
-        if (false === strpos($this->config['sql_get_details'], ':identity')) 
+        if (false === strpos($this->reporsitoryConfig['sql_get_details'], ':identity')) 
         {
             throw new Exception\InvalidConfigException(
                 'The sql_get_details configuration setting must include a :identity parameter'
@@ -155,7 +168,7 @@ class PDORepository implements UserRepositoryInterface
 
         try 
         {
-            $stmt = $this->pdo->prepare($this->config['sql_get_details']);
+            $stmt = $this->pdo->prepare($this->reporsitoryConfig['sql_get_details']);
         } 
         catch (PDOException $e) 
         {

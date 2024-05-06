@@ -65,6 +65,6 @@ class PDORepositoryFactory
 
         $user = $container->get(UserInterface::class);
 
-        return new PDORepository($container->get(PersistentPDO::class), $authConfig, $repositoryConfig, $tableConfig, $user);
+        return new PDORepository($container->get(PersistentPDO::class), $authConfig, $tableConfig, $user);
     }
 }
