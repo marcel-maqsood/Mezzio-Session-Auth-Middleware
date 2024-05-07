@@ -36,7 +36,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
 
     private $loginHandlingConfig;
 
-    private PermissionManager $permissionManager;
+    public static PermissionManager $permissionManager;
 
     private $fallbackRoute;
 
