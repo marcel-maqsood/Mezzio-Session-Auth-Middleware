@@ -10,6 +10,7 @@ use Psr\Http\Server\RequestHandlerInterface;
 use Mezzio\Authentication\UserInterface;
 use Mezzio\Helper\UrlHelper;
 use Laminas\Diactoros\Response\RedirectResponse;
+use Laminas\Diactoros\Response\JsonResponse;
 use MazeDEV\SessionAuth\SessionAuthMiddleware;
 
 class ForgotPasswordHandler implements RequestHandlerInterface
