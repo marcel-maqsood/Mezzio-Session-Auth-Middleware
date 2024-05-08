@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MazeDEV\SessionAuth\LoginHandler;
+namespace MazeDEV\SessionAuth\Handler;
 
 use Mezzio\Template\TemplateRendererInterface;
 use Psr\Container\ContainerInterface;

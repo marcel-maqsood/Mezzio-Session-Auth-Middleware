@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MazeDEV\SessionAuth\LogoutHandler;
+namespace MazeDEV\SessionAuth\Handler;
 
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -10,24 +10,24 @@ use Psr\Http\Server\RequestHandlerInterface;
 use Mezzio\Authentication\UserInterface;
 use Mezzio\Helper\UrlHelper;
 use Laminas\Diactoros\Response\RedirectResponse;
+use MazeDEV\SessionAuth\SessionAuthMiddleware;
 
 class LogoutHandler implements RequestHandlerInterface
 {
 
 
-    private $urlHelper;
+    
 
-    public function __construct($urlHelper)
+    public function __construct()
     {
-        $this->urlHelper = $urlHelper;
     }
 
     public function handle(ServerRequestInterface $request) : ResponseInterface
     {
         
-        $session  = $request->getAttribute('session');
-        $session->unset(UserInterface::class);
+        SessionAuthMiddleware::$tableOverride;
 
-        return new RedirectResponse($this->urlHelper->generate('home'));
+        
+        return new JsonResponse(['status' => false, 'targat' => SessionAuthMiddleware::$tableOverride], 400);
     }
 }

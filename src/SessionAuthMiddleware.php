@@ -53,7 +53,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
         $this->messages = $messages;
         $this->tableConfig = $tableConfig;
         $this->loginHandlingConfig = $loginHandlingConfig;
-        $this->permissionManager = new PermissionManager($persistentPDO, $tableConfig, $authConfig);
+        self::$permissionManager = new PermissionManager($persistentPDO, $tableConfig, $authConfig);
     }
 
     function isRefererInternal(ServerRequestInterface $request) : bool
@@ -86,17 +86,10 @@ class SessionAuthMiddleware implements MiddlewareInterface
             }
         }
 
-        $this->permissionManager->setTablePrefix(self::$tableOverride);
-        $this->permissionManager->fetchData();
+        self::$permissionManager->setTablePrefix(self::$tableOverride);
+        self::$permissionManager->fetchData();
 
-        $this->fallbackRoute = $this->permissionManager->getFallbackRoute($this->currentRoute);
-
-        $redirect = $this->handleAuth($request->getAttribute('session'));
-
-        if($this->errorMessage !== null)
-        {
-            \setcookie("error", $this->errorMessage, time() + 60, '/');
-        }
+        $this->fallbackRoute = self::$permissionManager->getFallbackRoute($this->currentRoute);
 
         $isLoginRoute = false;
         $loginTarget = "";
@@ -111,9 +104,16 @@ class SessionAuthMiddleware implements MiddlewareInterface
             }
         }
 
+		$redirect = $this->handleAuth($request->getAttribute('session'), $isLoginRoute);
+
+		if($this->errorMessage !== null)
+		{
+			\setcookie("error", $this->errorMessage, time() + 60, '/');
+		}
+
         if($isLoginRoute)
         {
-            if ($redirect === null && $this->permissionManager->userHasPermission($loginTarget))
+            if ($redirect === null && self::$permissionManager->userHasPermission($loginTarget))
             {
                 return new RedirectResponse($this->urlHelper->generate($loginTarget));
             }
@@ -130,16 +130,17 @@ class SessionAuthMiddleware implements MiddlewareInterface
         return $handler->handle($request);
     }
 
-    private function handleAuth(SessionInterface $session
-    ) : ResponseInterface|null
+    private function handleAuth(SessionInterface $session, $isLoginRoute = false) : ResponseInterface|null
     {
+
         //If the given route is not defined as a permission within our database, we redirect it to "home".
-
-
         $loginUrl = $this->urlHelper->generate($this->fallbackRoute);
         if (!$session->has(UserInterface::class)) 
         {
-            $this->errorMessage = $this->messages['error']['admin-logon-required-error'];
+			if(!$isLoginRoute)
+			{
+				$this->errorMessage = $this->messages['error']['admin-logon-required-error'];
+			}
 
             $session->unset(UserInterface::class);
             return new RedirectResponse($loginUrl);
@@ -197,9 +198,9 @@ class SessionAuthMiddleware implements MiddlewareInterface
             return false;
         }
 
-        $this->permissionManager->fetchUserPermissions($this->username);
+        self::$permissionManager->fetchUserPermissions($this->username);
 
-        if(!$this->permissionManager->userHasPermission($this->currentRoute))
+        if(!self::$permissionManager->userHasPermission($this->currentRoute))
         {
             if($this->referer != null)
             {

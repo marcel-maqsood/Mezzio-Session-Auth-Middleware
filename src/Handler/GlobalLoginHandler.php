@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace MazeDEV\SessionAuth\LoginHandler;
+namespace MazeDEV\SessionAuth\Handler;
 
 use Chubbyphp\Container\MinimalContainer;
 use DI\Container as PHPDIContainer;
