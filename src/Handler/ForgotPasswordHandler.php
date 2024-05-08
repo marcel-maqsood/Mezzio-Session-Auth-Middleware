@@ -12,22 +12,14 @@ use Mezzio\Helper\UrlHelper;
 use Laminas\Diactoros\Response\RedirectResponse;
 use MazeDEV\SessionAuth\SessionAuthMiddleware;
 
-class LogoutHandler implements RequestHandlerInterface
+class ForgotPasswordHandler implements RequestHandlerInterface
 {
-
-
-    
-
     public function __construct()
     {
     }
 
     public function handle(ServerRequestInterface $request) : ResponseInterface
-    {
-        
-        SessionAuthMiddleware::$tableOverride;
-
-        
+    {        
         return new JsonResponse(['status' => false, 'targat' => SessionAuthMiddleware::$tableOverride], 400);
     }
 }

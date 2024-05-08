@@ -74,6 +74,8 @@ class SessionAuthMiddleware implements MiddlewareInterface
         $routeResult = $request->getAttribute(RouteResult::class);
         $this->currentRoute = $routeResult->getMatchedRouteName();
 
+		self::$tableOverride = $this->authConfig['repository']['table'];
+
         if(isset($this->authConfig['repository']['table_override']))
         {
             foreach($this->authConfig['repository']['table_override'] as $routePrefix => $table)
