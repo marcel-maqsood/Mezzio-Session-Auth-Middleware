@@ -79,7 +79,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
 			return $handler->handle($request);
 		}
 
-		self::$tableOverride = $this->tableConfig[$this->authConfig['repository']['table']]['tableName'];
+		self::$tableOverride = $this->authConfig['repository']['table'];
 
         if(isset($this->authConfig['repository']['table_override']))
         {
