@@ -17,6 +17,8 @@ class PermissionManager
     private array $tableConfig;
     private array $authConfig;
 
+    private bool $fetched = false;
+
     public function __construct(PersistentPDO $persistentPDO, array $tableConfig, array $authConfig)
     {
         $this->persistentPDO = $persistentPDO;
@@ -54,6 +56,12 @@ class PermissionManager
                     $allPermissions[$permission[$this->tableConfig[$this->getTablePrefix() . 'permissions']['identifier']]][$this->tableConfig[$this->getTablePrefix() . 'permissions']['allowBypass']]
             ];
         }
+        $this->fetched = true;
+    }
+
+    public function dataFetched()
+    {
+        return $this->fetched;
     }
 
     public function setTablePrefix(string $prefix)
