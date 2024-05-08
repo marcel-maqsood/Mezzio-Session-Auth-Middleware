@@ -41,6 +41,10 @@ $app->pipe(ServerUrlMiddleware::class);
 $app->pipe(SessionMiddleware::class); // <<<<<-----
 ```
 
+You could also include our ```MazeDEV\SessionAuth\SessionAuthMiddleware``` in your pipeline if you want SessionAuthentication for every request. Be sure to include the SessionMiddleware before piping our Middleware!
+```
+$app->pipe(SessionAuthMiddleware::class);
+```
 
 For ease of use, we also include a basic database-sql file that contains every table and field that this middleware needs (built like the defaults described in this doc).
 You find it in ```db\base.sql```, we also included a MySQLWorkbench file ```db\SQL-model.mwb```so that you can adjust it to fit your needs without having to reconstruct it.
