@@ -11,11 +11,13 @@ class PermissionManager
 
     private array $allPermissions;
 
-    private string $prefix = "";
+    private static string $prefix = "";
 
     private PersistentPDO $persistentPDO;
     private array $tableConfig;
     private array $authConfig;
+
+	private static $user;
 
     private bool $fetched = false;
 
@@ -66,16 +68,16 @@ class PermissionManager
 
     public function setTablePrefix(string $prefix)
     {
-        $this->prefix = $prefix;
+        self::$prefix = $prefix;
     }
 
     public function getTablePrefix()
     {
-        if($this->prefix == "")
+        if(self::$prefix == "")
         {
             return "";
         }
-        return $this->prefix . "_";
+        return self::$prefix . "_";
     }
 
     public function fetchUserPermissions($username): void
@@ -85,7 +87,7 @@ class PermissionManager
         $groupJoins = [
             [
                 'table' => $this->tableConfig[$this->getTablePrefix() . 'group_relation']['tableName'],
-                'on' => $this->tableConfig[$this->prefix ]['tableName'] . '.' . $this->tableConfig[$this->prefix ]['identifier'] . ' = ' . $this->tableConfig[$this->getTablePrefix() . 'group_relation']['tableName'] . '.' . $this->tableConfig[$this->getTablePrefix() . 'group_relation']['login_identifier']
+                'on' => $this->tableConfig[self::$prefix ]['tableName'] . '.' . $this->tableConfig[self::$prefix ]['identifier'] . ' = ' . $this->tableConfig[$this->getTablePrefix() . 'group_relation']['tableName'] . '.' . $this->tableConfig[$this->getTablePrefix() . 'group_relation']['login_identifier']
             ],
             [
                 'table' => $this->tableConfig[$this->getTablePrefix() . 'groups']['tableName'],
@@ -108,8 +110,8 @@ class PermissionManager
         ];
 
         $permissions = $this->persistentPDO->getAll(
-            $this->tableConfig[$this->prefix]['tableName'], // Tabelle
-            $this->tableConfig[$this->prefix]['identifier'] . ' = ' . $userId,
+            $this->tableConfig[self::$prefix]['tableName'], // Tabelle
+            $this->tableConfig[self::$prefix]['identifier'] . ' = ' . $userId,
             $groupJoins,
             $groupDetails,
             '',
@@ -159,10 +161,11 @@ class PermissionManager
 
     public function userHasPermission(string $permission): bool
     {
-        if($this->isBypassable($permission) 
+        if($this->isBypassable($permission)
         ||  (
-                isset($this->authConfig['allowWildcard']) 
-                && $this->authConfig['allowWildcard'] === true 
+				isset($this->allPermissions[$permission])
+				&& isset($this->authConfig['allowWildcard'])
+                && $this->authConfig['allowWildcard'] === true
                 && in_array('*', $this->mergedPermissions)
             )
         )
@@ -199,18 +202,24 @@ class PermissionManager
 
     public function getUserId($loginName) : string
     {
-        //We could retrieve this id after successful login and store it as a cookie but there is no guarantee that this cookie is present and untouched.
-        return $this->persistentPDO->get(
-            $this->tableConfig[$this->prefix]['identifier'],
-            $this->tableConfig[$this->prefix]['tableName'],
-            [
-                $this->tableConfig[$this->prefix]['loginName'] =>
-                    [
-                        'operator' => '=',
-                        'queue' => $loginName,
-                    ]
-            ]
-        );
+		self::$user = $this->persistentPDO->get(
+			'*',
+			$this->tableConfig[self::$prefix]['tableName'],
+			[
+				$this->tableConfig[self::$prefix]['loginName'] =>
+					[
+						'operator' => '=',
+						'queue' => $loginName,
+					]
+			]
+		);
+
+        return self::$user->{$this->tableConfig[self::$prefix]['identifier']};
     }
+
+	public static function getUser()
+	{
+		return self::$user;
+	}
 
 }

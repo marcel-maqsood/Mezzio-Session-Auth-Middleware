@@ -42,7 +42,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
 
     public static $tableOverride = "";
 
-    public function __construct(PersistentPDO $persistentPDO, $urlHelper, array $authConfig, array $sessionConfig, array $messages, array $tableConfig, array $loginHandlingConfig)
+    public function __construct(PersistentPDO $persistentPDO, $urlHelper, array $authConfig, array $sessionConfig, array $messages, array $tableConfig, array $loginHandlingConfig )
     {
         $this->urlHelper = $urlHelper;
         $this->persistentPDO = $persistentPDO;
@@ -117,7 +117,6 @@ class SessionAuthMiddleware implements MiddlewareInterface
 		{
 			\setcookie("error", $this->errorMessage, time() + 60, '/');
 		}
-
         if($isLoginRoute)
         {
             if ($redirect === null && self::$permissionManager->userHasPermission($loginTarget))
@@ -137,6 +136,17 @@ class SessionAuthMiddleware implements MiddlewareInterface
         return $handler->handle($request);
     }
 
+	public static function generateRandomSalt($length = 255)
+	{
+		$characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+		$randomString = '';
+		for ($i = 0; $i < $length; $i++)
+		{
+			$randomString .= $characters[rand(0, strlen($characters) - 1)];
+		}
+		return $randomString;
+	}
+
     private function handleAuth(SessionInterface $session, $isLoginRoute = false) : ResponseInterface|null
     {
 
@@ -148,9 +158,8 @@ class SessionAuthMiddleware implements MiddlewareInterface
 			{
 				$this->errorMessage = $this->messages['error']['admin-logon-required-error'];
 			}
-
             $session->unset(UserInterface::class);
-            return new RedirectResponse($loginUrl);
+            return new RedirectResponse($this->urlHelper->generate($this->fallbackRoute));
         }
 
         $sessionCheckResult = $this->checkAndSetSession($session);
@@ -253,6 +262,11 @@ class SessionAuthMiddleware implements MiddlewareInterface
         return true;
     }
 
+	public static function getUserName()
+	{
+		return self::$username;
+	}
+
     public function getCurrentSessionHash(SessionInterface $session) : string|bool
     {
         if(!$this->setUsername($session))
@@ -274,6 +288,6 @@ class SessionAuthMiddleware implements MiddlewareInterface
             ]
         );
 
-        return hash("sha256", $fingerprint);
+        return hash($this->authConfig['security']['algo'], $fingerprint);
     }
 }

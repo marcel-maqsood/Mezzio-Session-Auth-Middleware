@@ -29,6 +29,7 @@ class ConfigProvider
                 SessionAuthMiddleware::class => SessionAuthMiddlewareFactory::class,
                 Handler\GlobalLoginHandler::class => Handler\GlobalLoginHandlerFactory::class,
                 Handler\LogoutHandler::class => Handler\LogoutHandlerFactory::class,
+				Handler\ForgotPasswordHandler::class => Handler\ForgotPasswordHandlerFactory::class,
             ],
         ];
     }

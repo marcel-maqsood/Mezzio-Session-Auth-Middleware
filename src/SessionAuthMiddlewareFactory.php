@@ -61,6 +61,6 @@ class SessionAuthMiddlewareFactory
             );
         }
 
-        return new SessionAuthMiddleware($container->get(PersistentPDO::class), $container->get(UrlHelper::class), $authenticationConfig, $config['session']['config'], $messages, $tableConfig, $loginHandlingConfig);
+        return new SessionAuthMiddleware($container->get(PersistentPDO::class), $container->get(UrlHelper::class), $authenticationConfig, $config['session']['config'], $messages, $tableConfig, $loginHandlingConfig );
     }
 }

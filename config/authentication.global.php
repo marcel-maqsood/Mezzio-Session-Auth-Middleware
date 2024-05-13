@@ -56,7 +56,10 @@ return [
             'tableName' => 'users',
             'identifier' => 'loginId',
             'loginName' => 'username',
-            'display' => 'hidden'
+            'loginMail' => 'email',
+            'display' => 'hidden',
+            'resetHash' => 'forgothash',
+            'resetValid' => 'forgotvalid'
         ],
         'user_group_relation' => [
             'tableName' => 'user_has_groups',
