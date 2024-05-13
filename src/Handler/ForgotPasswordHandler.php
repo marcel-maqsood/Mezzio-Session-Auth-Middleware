@@ -24,40 +24,139 @@ class ForgotPasswordHandler implements RequestHandlerInterface
 	private array $tableConfig;
 	private array $authConfig;
 	private array $resetPasswordMailAdapter;
+	private array $submitPasswordAdapter;
 	private TemplateRendererInterface $renderer;
 
-	public function __construct(TemplateRendererInterface $renderer, PersistentPDO $persistentPDO, array $tableConfig, $authConfig, array $resetPasswordMailAdapter)
+	public function __construct(TemplateRendererInterface $renderer, PersistentPDO $persistentPDO, array $tableConfig, $authConfig, array $resetPasswordMailAdapter, array $submitPasswordAdapter)
 	{
 		$this->renderer = $renderer;
 		$this->persistentPDO = $persistentPDO;
 		$this->tableConfig = $tableConfig;
 		$this->authConfig = $authConfig;
 		$this->resetPasswordMailAdapter = $resetPasswordMailAdapter;
+		$this->submitPasswordAdapter = $submitPasswordAdapter;
 	}
 
 	
 	public function handle(ServerRequestInterface $request) : ResponseInterface
 	{
+		$queryParams = $request->getQueryParams();
 		if ($request->getMethod() === 'POST')
 		{
-			return $this->handlePost();
+
+			if (!class_exists('MazeDEV\FormularHandlerMiddleware\Adapter\SmtpMail'))
+			{
+				return new JsonResponse(
+					[
+						'success' => false,
+						'error' => 'Password-Reset does not work without SmtpMail package',
+					],
+					500);
+			}
+
+			$postData = $request->getParsedBody() ?? [];
+			return $this->handlePost($postData, $queryParams);
+		}
+
+
+		if(!empty($queryParams) && isset($queryParams['hash']))
+		{
+			$state = $this->isHashValid($queryParams['hash']);
+			if($state !== true)
+			{
+				return $state;
+			}
+
+			return new HtmlResponse($this->renderer->render(
+				'app::SetPasswordForm',
+				[]
+			));
+			//display success.
+		}
+
+		return new HtmlResponse($this->renderer->render(
+			'app::SetPasswordForm',
+			[]
+		));
+	}
+
+	private function handlePost($postData, $queryParams)
+	{
+		switch($postData['action'])
+		{
+			case 'request':
+				return $this->handlePwRequest($postData);
+				break;
+			case 'submit':
+				return $this->handlePwSubmit($postData, $queryParams);
+				break;
 		}
 	}
 
-	private function handlePost()
+	private function isHashValid($hash)
 	{
-		if (!class_exists('MazeDEV\FormularHandlerMiddleware\Adapter\SmtpMail'))
+		$user = $this->persistentPDO->get(
+			"*",
+			$this->tableConfig[SessionAuthMiddleware::$tableOverride]['tableName'],
+			$this->tableConfig[SessionAuthMiddleware::$tableOverride]['resetHash'] . " = '" . $hash . "'",
+			[],
+			[],
+			false
+		);
+
+		if(!$user)
+		{
+
+			\setcookie("error", 'Der verwendete Link ist nicht mehr gültig.', time() + 60, '/');
+			return new JsonResponse(
+				[
+					'success' => false,
+					'error' => 'User not found23',
+					'target' => SessionAuthMiddleware::$tableOverride
+				],
+				400
+			);
+		}
+
+		$validUntil = $user->{$this->tableConfig[SessionAuthMiddleware::$tableOverride]['resetValid']};
+		$validUntil = new \DateTime($user->{$this->tableConfig[SessionAuthMiddleware::$tableOverride]['resetValid']});
+		$currentDateTime = new \DateTime();
+
+		if ($validUntil < $currentDateTime)
+		{
+
+			\setcookie("error", 'Der verwendete Link ist nicht mehr gültig.', time() + 60, '/');
+			return new JsonResponse(
+				[
+					'success' => false,
+					'error' => 'User not found',
+					'target' => SessionAuthMiddleware::$tableOverride
+				],
+				400
+			);
+		}
+
+		return true;
+	}
+
+	private function handlePwRequest($postData)
+	{
+		if(!isset($postData['username']) || $postData['username'] == '')
 		{
 			return new JsonResponse(
 				[
 					'success' => false,
-					'error' => 'Password-Reset does not work without SmtpMail',
-					'targat' => SessionAuthMiddleware::$tableOverride
+					'error' => 'No username given',
 				],
-				500);
+				400);
 		}
 
-		$user = SessionAuthMiddleware::$permissionManager::getUser();
+		$user = $this->persistentPDO->get(
+			"*",
+			$this->tableConfig[SessionAuthMiddleware::$tableOverride]['tableName'],
+			$this->tableConfig[SessionAuthMiddleware::$tableOverride]['loginName'] . " = '" . $postData['username'] . "' OR "
+			. $this->tableConfig[SessionAuthMiddleware::$tableOverride]['loginName'] . " = '" . $postData['username'] ."'"
+		);
 
 		if(!$user)
 		{
@@ -80,11 +179,37 @@ class ForgotPasswordHandler implements RequestHandlerInterface
 		//'sha256'
 		$hash = hash($this->authConfig['security']['algo'], $validUntil . SessionAuthMiddleware::generateRandomSalt());
 
+
+
+		$updated = $this->persistentPDO->update(
+			$this->tableConfig[SessionAuthMiddleware::$tableOverride]['tableName'],
+			[
+				$this->tableConfig[SessionAuthMiddleware::$tableOverride]['resetValid'] => $validUntil,
+				$this->tableConfig[SessionAuthMiddleware::$tableOverride]['resetHash'] => $hash,
+			],
+			$this->tableConfig[SessionAuthMiddleware::$tableOverride]['identifier']
+			. " = '" . $user->{$this->tableConfig[SessionAuthMiddleware::$tableOverride]['identifier']} . "'"
+		);
+
+		if(!$updated)
+		{
+			return new JsonResponse(
+				[
+					'success' => false,
+					'error' => "User couldn't be updated.",
+					'target' => SessionAuthMiddleware::$tableOverride
+				],
+				400
+			);
+		}
+
 		$email = $user->{$this->tableConfig[SessionAuthMiddleware::$tableOverride]['loginMail']};
 
 		$this->resetPasswordMailAdapter['recipients'] = [$email];
 
 		$validFields = [
+			'targetReset' => $postData['targetReset'],
+			'name' => $user->{$this->tableConfig[SessionAuthMiddleware::$tableOverride]['loginName']},
 			'userHash' => $hash,
 			'email' => $email
 		];
@@ -102,13 +227,119 @@ class ForgotPasswordHandler implements RequestHandlerInterface
 			]
 		];
 
+
 		$driver = new SmtpMail($fields, $this->resetPasswordMailAdapter, $validFields, $this->renderer);
 		return new JsonResponse(
 			[
 				'success' => true,
-				'target' => SessionAuthMiddleware::$tableOverride
 			],
 			200
 		);
+	}
+
+	private function handlePwSubmit($postData, $queryParams)
+	{
+		if(!isset($postData['password']) || $postData['password'] == '')
+		{
+			return new JsonResponse(
+				[
+					'success' => false,
+					'error' => 'No password given',
+				],
+				400);
+		}
+
+		$user = $this->persistentPDO->get(
+			"*",
+			$this->tableConfig[SessionAuthMiddleware::$tableOverride]['tableName'],
+			$this->tableConfig[SessionAuthMiddleware::$tableOverride]['resetHash'] . " = '" . $queryParams['hash'] . "'"
+		);
+
+		if(!$user)
+		{
+			\setcookie("error", 'Der verwendete Link ist nicht mehr gültig.', time() + 60, '/');
+			return new JsonResponse(
+				[
+					'success' => false,
+					'error' => 'User not found',
+				],
+				400
+			);
+		}
+
+		$validUntil = $user->{$this->tableConfig[SessionAuthMiddleware::$tableOverride]['resetValid']};
+		$validUntil = new \DateTime($user->{$this->tableConfig[SessionAuthMiddleware::$tableOverride]['resetValid']});
+		$currentDateTime = new \DateTime();
+
+		if ($validUntil < $currentDateTime)
+		{
+			\setcookie("error", 'Der verwendete Link ist nicht mehr gültig.', time() + 60, '/');
+			return new JsonResponse(
+				[
+					'success' => false,
+					'error' => 'User not found',
+				],
+				400
+			);
+		}
+
+		$password = password_hash($postData['password'] . $this->authConfig['security']['salt'], PASSWORD_BCRYPT);
+		$updated = $this->persistentPDO->update(
+			$this->tableConfig[SessionAuthMiddleware::$tableOverride]['tableName'],
+			[
+				$this->authConfig['repository']['fields']['password'] => $password,
+				$this->tableConfig[SessionAuthMiddleware::$tableOverride]['resetHash'] => hash($this->authConfig['security']['algo'], SessionAuthMiddleware::generateRandomSalt()),
+				$this->tableConfig[SessionAuthMiddleware::$tableOverride]['resetValid'] => \date('Y-m-d H:i:s')
+			],
+			$this->tableConfig[SessionAuthMiddleware::$tableOverride]['identifier']
+			. " = '" . $user->{$this->tableConfig[SessionAuthMiddleware::$tableOverride]['identifier']} . "'"
+		);
+
+
+		if(!$updated)
+		{
+			\setcookie("error", 'Passwort konnte nicht gespeichert werden.', time() + 60, '/');
+			return new JsonResponse(
+				[
+					'success' => false,
+					'error' => 'Password not saved.',
+				],
+				400
+			);
+		}
+
+
+		$email = $user->{$this->tableConfig[SessionAuthMiddleware::$tableOverride]['loginMail']};
+
+		$this->submitPasswordAdapter['recipients'] = [$email];
+
+		$validFields = [
+			'name' => $user->{$this->tableConfig[SessionAuthMiddleware::$tableOverride]['loginName']},
+			'userHash' => $queryParams['hash'],
+			'email' => $email
+		];
+
+		$fields = [
+			'fields' => [
+				'userHash' => [
+					'type' => 'text',
+					'required' => true,
+				],
+				'email' => [
+					'type' => 'text',
+					'required' => true,
+				],
+			]
+		];
+
+
+		$driver = new SmtpMail($fields, $this->submitPasswordAdapter, $validFields, $this->renderer);
+		return new JsonResponse(
+			[
+				'success' => true,
+			],
+			200
+		);
+
 	}
 }

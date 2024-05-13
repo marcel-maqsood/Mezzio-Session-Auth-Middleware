@@ -42,7 +42,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
 
     public static $tableOverride = "";
 
-    public function __construct(PersistentPDO $persistentPDO, $urlHelper, array $authConfig, array $sessionConfig, array $messages, array $tableConfig, array $loginHandlingConfig )
+    public function __construct(PersistentPDO $persistentPDO, $urlHelper, array $authConfig, array $sessionConfig, array $messages, array $tableConfig, array $loginHandlingConfig, array $noAuthRoutes )
     {
         $this->urlHelper = $urlHelper;
         $this->persistentPDO = $persistentPDO;
@@ -53,6 +53,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
         $this->messages = $messages;
         $this->tableConfig = $tableConfig;
         $this->loginHandlingConfig = $loginHandlingConfig;
+		$this->noAuthRoutes = $noAuthRoutes;
         self::$permissionManager = new PermissionManager($persistentPDO, $tableConfig, $authConfig);
     }
 
@@ -96,10 +97,19 @@ class SessionAuthMiddleware implements MiddlewareInterface
         self::$permissionManager->setTablePrefix(self::$tableOverride);
         self::$permissionManager->fetchData();
 
+		foreach ($this->noAuthRoutes as $route)
+		{
+			if($this->currentRoute == $route)
+			{
+				return $handler->handle($request);
+			}
+		}
+
         $this->fallbackRoute = self::$permissionManager->getFallbackRoute($this->currentRoute);
 
         $isLoginRoute = false;
         $loginTarget = "";
+		$resetTarget = "";
 
         foreach($this->loginHandlingConfig as $key => $data)
         {

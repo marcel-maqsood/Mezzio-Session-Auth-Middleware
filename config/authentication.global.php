@@ -11,6 +11,7 @@ return [
     ],
     'authentication' => [
         'redirect' => '/', //- The Link at which unauthorized request get redirect (As of PHPSession), however, the SessionAuthMiddleware won't use it.
+		'passwordResetOffset' => '2592000', //30 days => 30*24*60*60 How long should the password-reset hash be valid
         'allowWildcard' => true,
         'username' => 'username', //- The key in which the username is within $_POST. default: 'username'
         'password' => 'password', //- The key in which the password is within $_POST. default: 'password'
@@ -34,14 +35,25 @@ return [
             ],
         ]
     ],
+	'no-auth-routes' => [ //Routes that wont even be checked for authentication if the AuthSessionMiddleware is placed inside the pipe.
+		'adminPasswordReset',
+		'userPasswordReset',
+	],
     'loginHandling' => [
+		'logout'     => [
+			'name'        => 'unused',
+			'destination' => 'userLanding',
+			'resetDestination' => 'resetPath'
+		],
         'login1' => [
             'name' => 'Base Login',
             'destination' => 'authorizedPage',
+			'resetDestination' => 'resetPath'
         ],
         'login2' => [
             'name' => 'Base Login2',
             'destination' => 'authorizedPage2',
+			'resetDestination' => 'resetPath'
         ],
         //...
     ],

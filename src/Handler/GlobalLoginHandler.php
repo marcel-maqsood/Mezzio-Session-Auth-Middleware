@@ -78,12 +78,15 @@ class GlobalLoginHandler implements RequestHandlerInterface
         $routeResult = $request->getAttribute(RouteResult::class);
         $this->currentRoute = $routeResult->getMatchedRouteName();
 
+		$resetTarget = "";
+
         foreach($this->loginHandlingConfig as $key => $data)
         {
             if($this->currentRoute == $key)
             {
                 $this->loginTitleName = $data['name'];
                 $this->loginUrl = $this->urlHelper->generate($data['destination']);
+				$resetTarget = $data['resetDestination'];
                 break;
             }
         }   
@@ -104,7 +107,9 @@ class GlobalLoginHandler implements RequestHandlerInterface
 
         return new HtmlResponse($this->renderer->render(
             'app::Login',
-            $error != null ? [ 'error' => $error, 'handler' => $this->loginTitleName] : ['handler' => $this->loginTitleName]
+            $error != null ?
+				[ 'error' => $error, 'handler' => $this->loginTitleName, 'resetDestination' => $resetTarget] :
+				['handler' => $this->loginTitleName, 'resetDestination' => $resetTarget]
         ));
     }
  

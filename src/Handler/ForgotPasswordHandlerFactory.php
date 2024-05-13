@@ -31,12 +31,21 @@ class ForgotPasswordHandlerFactory
 			);
 		}
 
-		$smtpMailAdapter = $config['resetPasswordMailAdapter'] ?? null;
+		$requestPassworddapter = $config['requestPasswordAdapter'] ?? null;
 
-		if($smtpMailAdapter == null)
+		if($requestPassworddapter == null)
 		{
 			throw new Exception\InvalidConfigException(
-				"'resetPasswordMailAdapter'-Config is missing, please check our docs: " . $config['authdocs'] . '#user-content-resetPassword'
+				"'requestPasswordAdapter'-Config is missing, please check our docs: " . $config['authdocs'] . '#user-content-resetPassword'
+			);
+		}
+
+		$submitPasswordAdapter = $config['submitPasswordAdapter'] ?? null;
+
+		if($submitPasswordAdapter == null)
+		{
+			throw new Exception\InvalidConfigException(
+				"'submitPasswordAdapter'-Config is missing, please check our docs: " . $config['authdocs'] . '#user-content-resetPassword'
 			);
 		}
 
@@ -45,7 +54,8 @@ class ForgotPasswordHandlerFactory
 			$container->get(PersistentPDO::class),
 			$tableConfig,
 			$authConfig,
-			$smtpMailAdapter
+			$requestPassworddapter,
+			$submitPasswordAdapter
 		);
 	}
 }
