@@ -87,7 +87,9 @@ CREATE TABLE IF NOT EXISTS `repository`.`users` (
   `forgotvalid` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`loginId`),
   UNIQUE INDEX `id_UNIQUE` (`loginId` ASC) INVISIBLE,
-  UNIQUE INDEX `hidden_UNIQUE` (`hidden` ASC) VISIBLE)
+  UNIQUE INDEX `hidden_UNIQUE` (`hidden` ASC) VISIBLE,
+  UNIQUE INDEX `username_UNIQUE` (`username` ASC) VISIBLE,
+  UNIQUE INDEX `email_UNIQUE` (`email` ASC) VISIBLE)
 ENGINE = InnoDB;
 
 
