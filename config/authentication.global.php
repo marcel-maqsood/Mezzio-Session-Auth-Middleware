@@ -39,8 +39,8 @@ return [
         ]
     ],
 	'no-auth-routes' => [ //Routes that wont even be checked for authentication if the AuthSessionMiddleware is placed inside the pipe.
-		'adminPasswordReset',
-		'userPasswordReset',
+		'adminPasswordReset' => 'adminLogin',
+		'userPasswordReset' => 'userLogin',
 	],
     'loginHandling' => [
         'login1' => [
