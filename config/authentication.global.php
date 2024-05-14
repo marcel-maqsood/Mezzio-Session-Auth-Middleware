@@ -104,7 +104,7 @@ return [
             'session-set-error' => 'Ihre Sitzung konnte nicht eingetragen werden, bitte probieren Sie es erneut.',
             'session-expired-error' => 'Ihre Sitzung ist ausgelaufen, bitte melden Sie sich erneut an.',
             'another-device-logon-error' => 'Ein anderes Gerät hat sich angemeldet.',
-            'admin-logon-required-error' => 'Für diesen Inhalt müssen Sie angemeldet sein.',
+            'logon-required-error' => 'Für diesen Inhalt müssen Sie angemeldet und berechtigt sein.',
 
         ],
     ]   

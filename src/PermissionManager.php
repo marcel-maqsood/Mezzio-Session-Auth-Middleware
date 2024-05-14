@@ -200,19 +200,30 @@ class PermissionManager
         return "home";
     }
 
-    public function getUserId($loginName) : string
+    public function getUserId($loginName) : string|null
     {
+
+		$conditions = [];
+		foreach ($this->authConfig['repository']['fields']['identities'] as $identityField)
+		{
+			$conditions[$identityField] =
+			[
+				'operator' => '=',
+				'queue' => $loginName,
+				'logicalOperator' => 'OR'
+			];
+		}
+
 		self::$user = $this->persistentPDO->get(
 			'*',
 			$this->tableConfig[self::$prefix]['tableName'],
-			[
-				$this->tableConfig[self::$prefix]['loginName'] =>
-					[
-						'operator' => '=',
-						'queue' => $loginName,
-					]
-			]
+			$conditions
 		);
+
+		if(self::$user == null)
+		{
+			return null;
+		}
 
         return self::$user->{$this->tableConfig[self::$prefix]['identifier']};
     }

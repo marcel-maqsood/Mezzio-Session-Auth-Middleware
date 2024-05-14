@@ -113,14 +113,14 @@ class SessionAuthMiddleware implements MiddlewareInterface
 		$resetTarget = "";
 
         foreach($this->loginHandlingConfig as $key => $data)
-        {
-            if(self::$currentRoute == $key)
-            {
-                $loginTarget = $data['destination'];
-                $isLoginRoute = true;
-                break;
-            }
-        }
+		{
+			if (self::$currentRoute == $key)
+			{
+				$loginTarget = $data['destination'];
+				$isLoginRoute = true;
+				break;
+			}
+		}
 
 		$redirect = $this->handleAuth($request->getAttribute('session'), $isLoginRoute);
 
@@ -167,7 +167,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
         {
 			if(!$isLoginRoute)
 			{
-				$this->errorMessage = $this->messages['error']['admin-logon-required-error'];
+				$this->errorMessage = $this->messages['error']['logon-required-error'];
 			}
             $session->unset(UserInterface::class);
             return new RedirectResponse($this->urlHelper->generate($this->fallbackRoute));
@@ -196,18 +196,27 @@ class SessionAuthMiddleware implements MiddlewareInterface
             return false;
         }
 
-        $dbRow = $this->persistentPDO->get('*', $this->tableConfig[self::$tableOverride]['tableName'], $this->userConditions);
+		self::$permissionManager->fetchUserPermissions($this->username);
 
-        $sessionStamp = $dbRow == null ? null : $dbRow->{$this->securityFields['stamp']};
+        $user = self::$permissionManager::getUser();
+
+		if($user == null)
+		{
+			$this->errorMessage = $this->messages['error']['logon-required-error'];
+			return false;
+		}
+
+		$this->username = $user->{$this->tableConfig[self::$tableOverride]['loginName']};
+
+        $sessionStamp = $user->{$this->securityFields['stamp']};
 
         if($sessionStamp === null)
         {
             $this->errorMessage = $this->messages['error']['session-set-error'];
-            //there can't be a session without a session's start time.
             return false;
         }
 
-        $sessionHash = $dbRow == null ? null : $dbRow->{$this->securityFields['session']};
+        $sessionHash = $user->{$this->securityFields['session']};
 
         if($currentSessionHash !== $sessionHash)
         {
@@ -225,8 +234,6 @@ class SessionAuthMiddleware implements MiddlewareInterface
             return false;
         }
 
-        self::$permissionManager->fetchUserPermissions($this->username);
-
         if(!self::$permissionManager->userHasPermission(self::$currentRoute))
         {
             if($this->referer != null)
@@ -240,7 +247,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
 
         //the request contains our current session fingerprint so we letting it pass
         $session->set(DefaultUser::class, [
-            'username' => $this->username,
+            'username' => $user->{$this->tableConfig[self::$tableOverride]['loginName']},
             'roles'    => [],
             'details'  => [],
         ]);
