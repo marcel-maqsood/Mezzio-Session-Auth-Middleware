@@ -42,10 +42,10 @@ class PDORepositoryFactory
                 "'fields'-Config is missing in 'repository'-Config, please check our docs: " . $config['docs'] . '#auth'
             );
         }
-        if (! isset($repositoryConfig['fields']['identity'])) 
+        if (! isset($repositoryConfig['fields']['identities']))
         {
             throw new Exception\InvalidConfigException(
-                "'identity'-value not set in 'repository'-'fields'-Config, please check our docs: " . $config['docs'] . '#auth'
+                "'identities'-value not set in 'repository'-'fields'-Config, please check our docs: " . $config['docs'] . '#auth'
             );
         }
         if (! isset($repositoryConfig['fields']['password'])) 

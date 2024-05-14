@@ -155,7 +155,7 @@ class ForgotPasswordHandler implements RequestHandlerInterface
 			"*",
 			$this->tableConfig[SessionAuthMiddleware::$tableOverride]['tableName'],
 			$this->tableConfig[SessionAuthMiddleware::$tableOverride]['loginName'] . " = '" . $postData['username'] . "' OR "
-			. $this->tableConfig[SessionAuthMiddleware::$tableOverride]['loginName'] . " = '" . $postData['username'] ."'"
+			. $this->tableConfig[SessionAuthMiddleware::$tableOverride]['loginMail'] . " = '" . $postData['username'] ."'"
 		);
 
 		if(!$user)

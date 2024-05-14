@@ -60,6 +60,18 @@ You just have to use the variable "error" (as iterable) within your template to 
 
 Permissions, Groups and even Logins can be flagged as "hidden" within the database, that way, you can prevent them from beeing rendered in lists, so that nobody can use these to add them to users / groups, if they dont have direct access on your database.
 
+#### No Auth Routes ####
+In case you choosed to include our SessionAuthMiddleware in your pipeline instead of within certain routes,
+we included some configurability to exclude certain routes from getting checked:
+```
+'no-auth-routes' => [ //Routes that wont even be checked for authentication if the AuthSessionMiddleware is placed inside the pipe.
+	'adminPasswordReset',
+	'userPasswordReset',
+],
+```
+This is mandatory, as your users are not logged in if they want to reset their password, for example.
+
+
 #### LoginHandlers ####
 To provide you with a working LoginHandler, we included one that is capable of all features that this doc meantions, you can find it in
 ```src\LoginHandler\GlobalLoginHandler.php```
@@ -158,7 +170,10 @@ We already included it within our ```config\dependencies.global.php```.
     'repository' => [ //- An array, in which the details for our database-table are.
         'table' => 'login', //- The table, in which we look for the user.  default: 'logins'
         'fields' => [ //- An array in which the fields of that table are to authenticate a user.
-            'identity' => 'username', //- The key, with which we look in our table for the username given in $_POST. default: 'username'
+            'identities' => [ //An array with all fields that contains login-names or mails, and so on.
+                'username',
+                'email'
+            ], 
             'password' => 'anyPass' //- The key, with which we check if the password in $_POST is equal.
         ],
         'table_override' => [ // - An array, in which we define routes and their database-table prefix that the system will use tot check if they start with the key of any entry.
@@ -167,7 +182,7 @@ We already included it within our ```config\dependencies.global.php```.
         ],
     ],
     'security' => [ //- An array for our security features.
-        'algo' => 'sha-256', //- The algorithm used for generating the SessionHash stored in the database. default: 'sha-256'
+        'algo' => 'sha256', //- The algorithm used for generating the SessionHash stored in the database. default: 'sha256'
         'salt' => 'anySalt', // - The string which we use to harden our hashes be appending it.
         'fields' => [ //- An array, in which we define session related fields within our 'logins' table to be used to check if the session is valid.
             'session' => 'sessionhash', //- The key which we use to get the users current session-hash and check if it matches the request. default: 'sessionhash'
@@ -208,7 +223,9 @@ return [
             'tableName' => 'users',
             'identifier' => 'loginId',
             'loginName' => 'username',
-            'display' = 'hidden'
+            'display' = 'hidden',
+            'resetHash' => 'forgothash',
+            'resetValid' => 'forgotvalid'
         ],
         'user_group_relation' => [
             'tableName' => 'user_has_groups',
@@ -245,6 +262,106 @@ As stated before, you can define permission fallbacks if a given permission is n
 
 Permissions cannot be granted to certain users but instead to a group which can be granted to users.
 users may have as much groups as you want and groups may have as much permissions as you want.
+
+#### Password Reset Functionality #####
+As your application might need a reset-password function, we included a basic Handler within ```Handler\ForgotPasswordHandler```
+It uses basic form posts with the follwing needed input-fields:
+- username (which is used to find a user account with the value as its username or email)
+- password
+- action; either "submit" or "request" so that the handler know what he should do.
+
+The password reset Handler sends an Email to the user (if existing) with a link towards its designated password change form.
+This is a basic "request" reset-password form:
+
+```
+<form id="resetPwForm" method="post">
+	<input type="hidden" name="action" value="request"/>
+	<div class="input-group mb-3">
+		<input id="username" name="username" type="text" class="form-control" placeholder="Username or E-Mail">
+		<div class="input-group-append">
+			<div class="input-group-text">
+				<span class="fas fa-envelope"></span>
+			</div>
+		</div>
+	</div>
+	
+	div class="row mb-2">
+		<div class="col-6">
+		</div>			
+		<div class="col-6">
+			<button type="submit" class="btn btn-primary btn-block reset-password" data-target="{{ path(resetDestination) }}">Reset Password</button>
+		</div>	
+	</div>
+	<div class="row">
+		<div class="col-6">
+		</div>
+		<div class="col-6">
+			<button type="button" class="btn btn-success btn-block to-login" >Back to Login</button>
+		</div>
+	</div>
+</form>
+```
+
+It should be included in your "login.html.twig" 
+```
+	{{ include('@app/ForgotPassword.html.twig') }}
+```
+and uses the variable "resetDestination" to send the password-reset request towards the correct handler,
+as defined by your config:
+```
+'loginHandling'  => [
+    'adminLogin' => [
+        'name'             => 'Admin',
+        'destination'      => 'adminLanding',
+        'resetDestination' => 'adminPasswordReset',
+    ],
+]
+
+```
+KEEP IN MIND: This is still on your LoginRoute and as such, 
+requests towards the PasswordResetHandler need to be directed directly towards it.
+
+
+After the user submitted its password-reset request;
+He recieves an email with a link towards our PasswordResetHandler, including the queryParam "hash",
+which was saved in the user account after submitting the request.
+We also saved the validUntil date of that hash as it has to expire at some point; by default config, we use 30 days.
+
+a basic password-submit form should look like this:
+
+```
+<form method="post" id="savePwForm">
+    <input type="hidden" name="action" value="submit"/>
+	<div class="input-group mb-3">
+		<input id="password" name="password" type="password" class="form-control" placeholder="Password">
+		<div class="input-group-append">
+			<div class="input-group-text">
+				<span class="fas fa-lock"></span>
+			</div>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-4"></div>
+		<div class="col-4"></div>
+		<div class="col-4">
+			<button type="submit" class="btn btn-primary btn-block save-pw">Update</button>
+		</div>
+	</div>
+	<div class="row">
+		<div class="col-12">
+			<div class="bg-gradient-success mt-3 set-sent text-center" style="display:none">
+			    <p class="text-dark font-weight-bold mt-2">Your password was changed. You will receive an email.</p>
+		    </div>
+		    <div class="bg-gradient-danger mt-3 set-fail text-center" style="display:none">
+			    <p class="text-light font-weight-bold mt-2">Your password couldn't be changed.</p>
+		    </div>
+		</div>
+	</div>
+</form>
+```
+
+As our HTML-Templates use some javascript, we included you all the functions that might be handy; you find the js in
+```js\basic.js``` it is based on JQuery so be sure to included JQuery in your project.
 
 
 ##### <a id="messages">Error Messages</a>

@@ -11,15 +11,18 @@ return [
     ],
     'authentication' => [
         'redirect' => '/', //- The Link at which unauthorized request get redirect (As of PHPSession), however, the SessionAuthMiddleware won't use it.
-		'passwordResetOffset' => '2592000', //30 days => 30*24*60*60 How long should the password-reset hash be valid
-        'allowWildcard' => true,
+		'passwordResetOffset' => '2592000',
+		'allowWildcard' => true,
         'username' => 'username', //- The key in which the username is within $_POST. default: 'username'
         'password' => 'password', //- The key in which the password is within $_POST. default: 'password'
         'repository' => [ //- An array, in which the details for our database-table are.
             'table' => 'login', //- The table, in which we look for the user.  default: 'login'
             'fields' => [ //- An array in which the fields of that table are to authenticate a user.
-                'identity' => 'username', //- The key, with which we look in our table for the username given in $_POST. default: 'username'
-                'password' => 'password' //- The key, with which we check if the password in $_POST is equal.
+				'identities' => [ //An array with all fields that contains login-names or mails, and so on.
+					'username',
+					'email'
+				],
+				'password' => 'password' //- The key, with which we check if the password in $_POST is equal.
             ]
         ],
         'security' => [ //- An array for our security features.
@@ -40,11 +43,6 @@ return [
 		'userPasswordReset',
 	],
     'loginHandling' => [
-		'logout'     => [
-			'name'        => 'unused',
-			'destination' => 'userLanding',
-			'resetDestination' => 'resetPath'
-		],
         'login1' => [
             'name' => 'Base Login',
             'destination' => 'authorizedPage',
@@ -68,10 +66,9 @@ return [
             'tableName' => 'users',
             'identifier' => 'loginId',
             'loginName' => 'username',
-            'loginMail' => 'email',
             'display' => 'hidden',
-            'resetHash' => 'forgothash',
-            'resetValid' => 'forgotvalid'
+			'resetHash' => 'forgothash',
+			'resetValid' => 'forgotvalid'
         ],
         'user_group_relation' => [
             'tableName' => 'user_has_groups',

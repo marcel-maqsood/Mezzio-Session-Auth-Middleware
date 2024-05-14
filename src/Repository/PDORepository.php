@@ -60,12 +60,18 @@ class PDORepository implements UserRepositoryInterface
     public function authenticate(string $username, ?string $password = null, ?string $currentRoute = ""): ?UserInterface
     {
 
-        $conditions = [
-            $this->reporsitoryConfig['fields']['identity'] => [
-                'operator' => '=',
-                'queue' => $username,
-            ]
-        ];
+		$conditions = [];
+
+		foreach ($this->reporsitoryConfig['fields']['identities'] as $identityField)
+		{
+			$conditions[] = [
+				$identityField => [
+					'operator' => '=',
+					'queue' => $username,
+					'logicalOperator' => 'OR'
+				]
+			];
+		}
 
         $table = SessionAuthMiddleware::$tableOverride;
         if($table == "" || $table == null)
