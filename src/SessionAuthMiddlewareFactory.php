@@ -63,6 +63,15 @@ class SessionAuthMiddlewareFactory
 
 		$noAuthRoutes = $config['no-auth-routes'] ?? [];
 
-        return new SessionAuthMiddleware($container->get(PersistentPDO::class), $container->get(UrlHelper::class), $authenticationConfig, $config['session']['config'], $messages, $tableConfig, $loginHandlingConfig, $noAuthRoutes);
+        return new SessionAuthMiddleware(
+			$container->get(PersistentPDO::class),
+			$container->get(UrlHelper::class),
+			$authenticationConfig,
+			$config['session']['config'],
+			$messages,
+			$tableConfig,
+			$loginHandlingConfig,
+			$noAuthRoutes
+		);
     }
 }

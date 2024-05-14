@@ -64,12 +64,11 @@ class PDORepository implements UserRepositoryInterface
 
 		foreach ($this->reporsitoryConfig['fields']['identities'] as $identityField)
 		{
-			$conditions[] = [
-				$identityField => [
-					'operator' => '=',
-					'queue' => $username,
-					'logicalOperator' => 'OR'
-				]
+			$conditions[$identityField] =
+			[
+				'operator' => '=',
+				'queue' => $username,
+				'logicalOperator' => 'OR'
 			];
 		}
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MazeDEV\SessionAuth\Handler;
 
+use Mezzio\Helper\UrlHelper;
 use Mezzio\Template\TemplateRendererInterface;
 use Psr\Container\ContainerInterface;
 use MazeDEV\DatabaseConnector\PersistentPDO;
@@ -55,7 +56,9 @@ class ForgotPasswordHandlerFactory
 			$tableConfig,
 			$authConfig,
 			$requestPassworddapter,
-			$submitPasswordAdapter
+			$submitPasswordAdapter,
+			$container->get(UrlHelper::class),
+
 		);
 	}
 }

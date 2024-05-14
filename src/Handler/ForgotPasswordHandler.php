@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MazeDEV\SessionAuth\Handler;
 
 use Laminas\Diactoros\Response\HtmlResponse;
+use Mezzio\Session\Session;
 use Mezzio\Template\TemplateRendererInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -25,9 +26,10 @@ class ForgotPasswordHandler implements RequestHandlerInterface
 	private array $authConfig;
 	private array $resetPasswordMailAdapter;
 	private array $submitPasswordAdapter;
+	private UrlHelper $urlHelper;
 	private TemplateRendererInterface $renderer;
 
-	public function __construct(TemplateRendererInterface $renderer, PersistentPDO $persistentPDO, array $tableConfig, $authConfig, array $resetPasswordMailAdapter, array $submitPasswordAdapter)
+	public function __construct(TemplateRendererInterface $renderer, PersistentPDO $persistentPDO, array $tableConfig, $authConfig, array $resetPasswordMailAdapter, array $submitPasswordAdapter, UrlHelper $urlHelper)
 	{
 		$this->renderer = $renderer;
 		$this->persistentPDO = $persistentPDO;
@@ -35,6 +37,7 @@ class ForgotPasswordHandler implements RequestHandlerInterface
 		$this->authConfig = $authConfig;
 		$this->resetPasswordMailAdapter = $resetPasswordMailAdapter;
 		$this->submitPasswordAdapter = $submitPasswordAdapter;
+		$this->urlHelper = $urlHelper;
 	}
 
 	
@@ -66,17 +69,12 @@ class ForgotPasswordHandler implements RequestHandlerInterface
 			{
 				return $state;
 			}
-
-			return new HtmlResponse($this->renderer->render(
-				'app::SetPasswordForm',
-				[]
-			));
 			//display success.
 		}
 
 		return new HtmlResponse($this->renderer->render(
 			'app::SetPasswordForm',
-			[]
+			['loginAt' => SessionAuthMiddleware::$noAuthRoutes[SessionAuthMiddleware::$currentRoute]]
 		));
 	}
 
@@ -108,14 +106,7 @@ class ForgotPasswordHandler implements RequestHandlerInterface
 		{
 
 			\setcookie("error", 'Der verwendete Link ist nicht mehr gültig.', time() + 60, '/');
-			return new JsonResponse(
-				[
-					'success' => false,
-					'error' => 'User not found23',
-					'target' => SessionAuthMiddleware::$tableOverride
-				],
-				400
-			);
+			return new RedirectResponse($this->urlHelper->generate(SessionAuthMiddleware::$noAuthRoutes[SessionAuthMiddleware::$currentRoute]));
 		}
 
 		$validUntil = $user->{$this->tableConfig[SessionAuthMiddleware::$tableOverride]['resetValid']};
@@ -126,14 +117,7 @@ class ForgotPasswordHandler implements RequestHandlerInterface
 		{
 
 			\setcookie("error", 'Der verwendete Link ist nicht mehr gültig.', time() + 60, '/');
-			return new JsonResponse(
-				[
-					'success' => false,
-					'error' => 'User not found',
-					'target' => SessionAuthMiddleware::$tableOverride
-				],
-				400
-			);
+			return new RedirectResponse($this->urlHelper->generate(SessionAuthMiddleware::$noAuthRoutes[SessionAuthMiddleware::$currentRoute]));
 		}
 
 		return true;

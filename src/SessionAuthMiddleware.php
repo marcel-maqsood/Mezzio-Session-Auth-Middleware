@@ -25,7 +25,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
     private $persistentPDO;
     private $sessionConfig;
     private $errorMessage;
-    private $currentRoute;
+    public static $currentRoute;
     private $messages;
 
     private $tableConfig;
@@ -41,6 +41,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
     private $fallbackRoute;
 
     public static $tableOverride = "";
+	public static $noAuthRoutes;
 
     public function __construct(PersistentPDO $persistentPDO, $urlHelper, array $authConfig, array $sessionConfig, array $messages, array $tableConfig, array $loginHandlingConfig, array $noAuthRoutes )
     {
@@ -53,7 +54,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
         $this->messages = $messages;
         $this->tableConfig = $tableConfig;
         $this->loginHandlingConfig = $loginHandlingConfig;
-		$this->noAuthRoutes = $noAuthRoutes;
+		self::$noAuthRoutes = $noAuthRoutes;
         self::$permissionManager = new PermissionManager($persistentPDO, $tableConfig, $authConfig);
     }
 
@@ -73,9 +74,9 @@ class SessionAuthMiddleware implements MiddlewareInterface
         }
 
         $routeResult = $request->getAttribute(RouteResult::class);
-        $this->currentRoute = $routeResult->getMatchedRouteName();
+        self::$currentRoute = $routeResult->getMatchedRouteName();
 
-        if(!$this->currentRoute)
+        if(!self::$currentRoute)
 		{
 			return $handler->handle($request);
 		}
@@ -86,7 +87,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
         {
             foreach($this->authConfig['repository']['table_override'] as $routePrefix => $table)
             {
-                if(str_starts_with($this->currentRoute, $routePrefix))
+                if(str_starts_with(self::$currentRoute, $routePrefix))
                 {
                     self::$tableOverride = $table;
                     break;
@@ -97,15 +98,15 @@ class SessionAuthMiddleware implements MiddlewareInterface
         self::$permissionManager->setTablePrefix(self::$tableOverride);
         self::$permissionManager->fetchData();
 
-		foreach ($this->noAuthRoutes as $route)
+		foreach (self::$noAuthRoutes as $route => $data)
 		{
-			if($this->currentRoute == $route)
+			if(self::$currentRoute == $route)
 			{
 				return $handler->handle($request);
 			}
 		}
 
-        $this->fallbackRoute = self::$permissionManager->getFallbackRoute($this->currentRoute);
+        $this->fallbackRoute = self::$permissionManager->getFallbackRoute(self::$currentRoute);
 
         $isLoginRoute = false;
         $loginTarget = "";
@@ -113,7 +114,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
 
         foreach($this->loginHandlingConfig as $key => $data)
         {
-            if($this->currentRoute == $key)
+            if(self::$currentRoute == $key)
             {
                 $loginTarget = $data['destination'];
                 $isLoginRoute = true;
@@ -226,7 +227,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
 
         self::$permissionManager->fetchUserPermissions($this->username);
 
-        if(!self::$permissionManager->userHasPermission($this->currentRoute))
+        if(!self::$permissionManager->userHasPermission(self::$currentRoute))
         {
             if($this->referer != null)
             {
@@ -263,12 +264,16 @@ class SessionAuthMiddleware implements MiddlewareInterface
         }
 
         $this->username = $user['username'];
-        $this->userConditions = [
-            $this->repoFields['identity'] => [
-                'operator' => '=',
-                'queue' => $this->username,
-            ]
-        ];
+
+		foreach ($this->repoFields['identities'] as $identityField)
+		{
+			$this->userConditions[$identityField] =
+			[
+				'operator' => '=',
+				'queue' => $this->username,
+				'logicalOperator' => 'OR'
+			];
+		}
         return true;
     }
 

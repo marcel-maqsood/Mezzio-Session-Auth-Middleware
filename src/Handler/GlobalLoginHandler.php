@@ -56,6 +56,7 @@ class GlobalLoginHandler implements RequestHandlerInterface
     private $loginTitleName;
 
     private $loginUrl;
+	private $resetTarget;
 
     public function __construct(TemplateRendererInterface $renderer, PhpSession $session, UrlHelper $urlHelper, $config, $loginHandlingConfig, $tableConfig, $sessionAuth, PersistentPDO $persistentPDO)
     {
@@ -78,15 +79,13 @@ class GlobalLoginHandler implements RequestHandlerInterface
         $routeResult = $request->getAttribute(RouteResult::class);
         $this->currentRoute = $routeResult->getMatchedRouteName();
 
-		$resetTarget = "";
-
         foreach($this->loginHandlingConfig as $key => $data)
         {
             if($this->currentRoute == $key)
             {
                 $this->loginTitleName = $data['name'];
                 $this->loginUrl = $this->urlHelper->generate($data['destination']);
-				$resetTarget = $data['resetDestination'];
+				$this->resetTarget = $data['resetDestination'];
                 break;
             }
         }   
@@ -108,8 +107,8 @@ class GlobalLoginHandler implements RequestHandlerInterface
         return new HtmlResponse($this->renderer->render(
             'app::Login',
             $error != null ?
-				[ 'error' => $error, 'handler' => $this->loginTitleName, 'resetDestination' => $resetTarget] :
-				['handler' => $this->loginTitleName, 'resetDestination' => $resetTarget]
+				[ 'error' => $error, 'handler' => $this->loginTitleName, 'resetDestination' => $this->resetTarget] :
+				['handler' => $this->loginTitleName, 'resetDestination' => $this->resetTarget]
         ));
     }
  
@@ -128,12 +127,17 @@ class GlobalLoginHandler implements RequestHandlerInterface
             ];
 
             //Update sessionstamp and sessionhash in db to logout any other device that was logged in
-            $userConditions = [
-                $this->repoFields['identity'] => [
-                    'operator' => '=',
-                    'queue' => $user->getIdentity(),
-                ]
-            ];
+			$userConditions = [];
+
+			foreach ($this->repoFields['identities'] as $identityField)
+			{
+				$userConditions[$identityField] =
+				[
+					'operator' => '=',
+					'queue' => $user->getIdentity(),
+					'logicalOperator' => 'OR'
+				];
+			}
 
             $table = SessionAuthMiddleware::$tableOverride;
             if($table == "" || $table == null)
@@ -147,7 +151,7 @@ class GlobalLoginHandler implements RequestHandlerInterface
                 $session->unset(UserInterface::class);
                 return new HtmlResponse($this->renderer->render(
                     'app::Login',
-                    ['error' => 'Looks like we ran into some issues; please try again.', 'handler' => $this->loginTitleName]
+                    ['error' => 'Looks like we ran into some issues; please try again.', 'handler' => $this->loginTitleName, 'resetDestination' => $this->resetTarget]
                 ));
             }
 
@@ -157,7 +161,7 @@ class GlobalLoginHandler implements RequestHandlerInterface
         // Login failed
         return new HtmlResponse($this->renderer->render(
             'app::Login',
-            ['error' => 'Invalid credentials; please try again', 'handler' => $this->loginTitleName]
+            ['error' => 'Invalid credentials; please try again', 'handler' => $this->loginTitleName, 'resetDestination' => $this->resetTarget]
         ));
     }
 }
