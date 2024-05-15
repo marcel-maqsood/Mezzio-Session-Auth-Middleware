@@ -30,6 +30,7 @@ class ConfigProvider
                 Handler\GlobalLoginHandler::class => Handler\GlobalLoginHandlerFactory::class,
                 Handler\LogoutHandler::class => Handler\LogoutHandlerFactory::class,
 				Handler\ForgotPasswordHandler::class => Handler\ForgotPasswordHandlerFactory::class,
+				Handler\CreateAccountHandler::class => Handler\CreateAccountHandlerFactory::class,
             ],
         ];
     }
