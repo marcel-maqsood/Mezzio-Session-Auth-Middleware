@@ -89,7 +89,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
             {
                 if(str_starts_with(self::$currentRoute, $routePrefix))
                 {
-                    self::$tableOverride = $table;
+                    self::$tableOverride = $table['tableKey'];
                     break;
                 }
             }

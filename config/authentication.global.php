@@ -33,8 +33,8 @@ return [
                 'stamp' => 'sessionstart' //- The key which we use to get the session-start of the current session to check if it is still valid. default: 'sessionstart'
             ],
             'table_override' => [ // - An array, in which we define routes and their database-table prefix that the system will use tot check if they start with the key of any entry.
-                'user'  => 'user', // Routename starts with 'user' => use table prefix 'user' : user - for base table, user_permissions for all permissions that only user_groups can have, etc.
-                'admin' => 'admin',
+                'user'  => ['tableKey' => 'user', 'display' => 'Benutzer'], // Routename starts with 'user' => use table prefix 'user' : user - for base table, user_permissions for all permissions that only user_groups can have, etc.
+                'admin' => ['tableKey' => 'admin', 'display' => 'Admin'],
             ],
         ]
     ],
