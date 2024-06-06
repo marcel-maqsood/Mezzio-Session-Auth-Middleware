@@ -192,7 +192,8 @@ class ForgotPasswordHandler implements RequestHandlerInterface
 		$this->resetPasswordMailAdapter['recipients'] = [$email];
 
 		$validFields = [
-			'targetReset' => $protocol . $_SERVER['SERVER_NAME'] . "/" . $postData['targetReset'],
+			'host' => $protocol . $_SERVER['SERVER_NAME'],
+			'target' => $postData['targetReset'],
 			'name' => $user->{$this->tableConfig[SessionAuthMiddleware::$tableOverride]['loginName']},
 			'userHash' => $hash,
 			'email' => $email
@@ -298,6 +299,7 @@ class ForgotPasswordHandler implements RequestHandlerInterface
 		$this->submitPasswordAdapter['recipients'] = [$email];
 
 		$validFields = [
+			'host' => $protocol . $_SERVER['SERVER_NAME'],
 			'name' => $user->{$this->tableConfig[SessionAuthMiddleware::$tableOverride]['loginName']},
 			'userHash' => $queryParams['hash'],
 			'email' => $email
