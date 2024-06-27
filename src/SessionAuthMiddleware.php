@@ -224,8 +224,8 @@ class SessionAuthMiddleware implements MiddlewareInterface
             return false;
         }
 
-        $sessionMaxTime = (new \DateTime($sessionStamp))->add(new \DateInterval('PT' . $this->sessionConfig['gc_lifetime'] . 'S'));
-        $currentTime = new \DateTime();
+        $sessionMaxTime = (new \DateTime($sessionStamp))->add(new \DateInterval('PT' . $this->sessionConfig['gc_lifetime'] . 'S'))->getTimestamp();
+        $currentTime = (new \DateTime())->getTimestamp();
 
         //we must check if the session is still alive by checking if timestamp is inside allowed time window here, as the request's session might have been altered.
         if($sessionMaxTime < $currentTime)
@@ -233,6 +233,26 @@ class SessionAuthMiddleware implements MiddlewareInterface
             $this->errorMessage = $this->messages['error']['session-expired-error'];
             return false;
         }
+
+		if($sessionMaxTime - $currentTime < 1800)
+		{
+			$this->persistentPDO->update(
+				$this->tableConfig[self::$tableOverride]['tableName'],
+				[
+					$this->securityFields['stamp'] => date("Y-m-d H:i:s", $currentTime)
+				],
+				$this->tableConfig[self::$tableOverride]['identifier'] . " = '" . $user->{$this->tableConfig[self::$tableOverride]['identifier']} . "'",
+				false
+			);
+		}
+
+		$session->set(DefaultUser::class, [
+			'username' => $user->{$this->tableConfig[self::$tableOverride]['loginName']},
+			'roles'    => [],
+			'details'  => [],
+		]);
+
+		$session->regenerate();
 
         if(!self::$permissionManager->userHasPermission(self::$currentRoute))
         {
@@ -246,13 +266,6 @@ class SessionAuthMiddleware implements MiddlewareInterface
         }
 
         //the request contains our current session fingerprint so we letting it pass
-        $session->set(DefaultUser::class, [
-            'username' => $user->{$this->tableConfig[self::$tableOverride]['loginName']},
-            'roles'    => [],
-            'details'  => [],
-        ]);
-
-        $session->regenerate();
         return true;
     }
 
