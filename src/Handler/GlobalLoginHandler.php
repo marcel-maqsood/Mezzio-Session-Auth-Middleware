@@ -131,8 +131,9 @@ class GlobalLoginHandler implements RequestHandlerInterface
 
 			foreach ($this->repoFields['identities'] as $identityField)
 			{
-				$userConditions[$identityField] =
+				$userConditions[] =
 				[
+                    'field' => $identityField,
 					'operator' => '=',
 					'queue' => $user->getIdentity(),
 					'logicalOperator' => 'OR'

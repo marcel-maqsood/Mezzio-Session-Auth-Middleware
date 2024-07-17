@@ -287,8 +287,9 @@ class SessionAuthMiddleware implements MiddlewareInterface
 
 		foreach ($this->repoFields['identities'] as $identityField)
 		{
-			$this->userConditions[$identityField] =
+			$this->userConditions[] =
 			[
+                'field' => $identityField,
 				'operator' => '=',
 				'queue' => $this->username,
 				'logicalOperator' => 'OR'
