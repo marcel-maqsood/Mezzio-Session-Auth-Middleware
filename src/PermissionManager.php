@@ -206,8 +206,9 @@ class PermissionManager
 		$conditions = [];
 		foreach ($this->authConfig['repository']['fields']['identities'] as $identityField)
 		{
-			$conditions[$identityField] =
+			$conditions[] =
 			[
+                'field' => $identityField,
 				'operator' => '=',
 				'queue' => $loginName,
 				'logicalOperator' => 'OR'
