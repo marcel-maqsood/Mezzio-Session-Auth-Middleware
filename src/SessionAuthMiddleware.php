@@ -68,6 +68,15 @@ class SessionAuthMiddleware implements MiddlewareInterface
     {
         $this->referer = $request->getHeaderLine('Referer');
 
+        if(isset($this->authConfig['username-forwarding']) && $this->authConfig['username-forwarding'] == true)
+        {
+            $session = $request->getAttribute('session');
+            if($session->has(UserInterface::class))
+            {
+                $request = $request->withAttribute('adminName', $session->get(UserInterface::class)['username']);
+            }
+        }
+
         if(!$this->isRefererInternal($request))
         {
             $this->referer = null;
