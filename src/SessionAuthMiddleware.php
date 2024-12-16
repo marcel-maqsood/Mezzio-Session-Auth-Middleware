@@ -257,6 +257,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
 
 		$session->set(DefaultUser::class, [
 			'username' => $user->{$this->tableConfig[self::$tableOverride]['loginName']},
+            'path' => self::$tableOverride,
 			'roles'    => [],
 			'details'  => [],
 		]);
