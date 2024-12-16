@@ -75,9 +75,9 @@ class SessionAuthMiddleware implements MiddlewareInterface
             {
                 $request = $request->withAttribute('adminName', $session->get(UserInterface::class)['username']);
                 
-                if(isset($session->get(UserInterface::class)['path']))
+                if(isset($session->get(UserInterface::class)['details']) && isset($session->get(UserInterface::class)['details']['path']))
                 {
-                    $request = $request->withAttribute('userPath', $session->get(UserInterface::class)['path']);
+                    $request = $request->withAttribute('userPath', $session->get(UserInterface::class)['details']['path']);
                 }
             }
         }
@@ -262,9 +262,10 @@ class SessionAuthMiddleware implements MiddlewareInterface
 
 		$session->set(DefaultUser::class, [
 			'username' => $user->{$this->tableConfig[self::$tableOverride]['loginName']},
-            'path' => self::$tableOverride,
 			'roles'    => [],
-			'details'  => [],
+			'details'  => [
+				'path' => self::$tableOverride,
+			],
 		]);
 
 		$session->regenerate();
