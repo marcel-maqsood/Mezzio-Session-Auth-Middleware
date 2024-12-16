@@ -46,11 +46,12 @@ class PDORepository implements UserRepositoryInterface
         // Provide type safety for the composed user factory.
         $this->userFactory = static function (
             string $identity,
+            string $userPath = null,
             array $roles = [],
             array $details = []
         ) use ($userFactory): UserInterface 
         {
-            return $userFactory($identity, $roles, $details);
+            return $userFactory($identity, $userPath, $roles, $details);
         };
     }
 
@@ -98,6 +99,7 @@ class PDORepository implements UserRepositoryInterface
         {
             return ($this->userFactory)(
                 $username,
+                $table,
                 $this->getUserRoles($username),
                 $this->getUserDetails($username)
             );
