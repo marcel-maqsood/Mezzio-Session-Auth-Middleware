@@ -74,7 +74,11 @@ class SessionAuthMiddleware implements MiddlewareInterface
             if($session->has(UserInterface::class))
             {
                 $request = $request->withAttribute('adminName', $session->get(UserInterface::class)['username']);
-                $request = $request->withAttribute('userPath', $session->get(UserInterface::class)['path']);
+                
+                if(isset($session->get(UserInterface::class)['path']))
+                {
+                    $request = $request->withAttribute('userPath', $session->get(UserInterface::class)['path']);
+                }
             }
         }
 
