@@ -211,7 +211,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
         }
 
         $currentUserInterface = $session->get(UserInterface::class);
-		if($currentUserInterface['details']['path'] !== $this->tableConfig[self::$tableOverride])
+		if($currentUserInterface['details']['path'] !== self::$tableOverride)
 		{
 			$this->errorMessage = $this->messages['error']['user-repo-error'];
 			return false;
