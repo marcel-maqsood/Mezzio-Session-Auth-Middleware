@@ -11,7 +11,7 @@ return [
             'another-device-logon-error' => 'Ein anderes Gerät hat sich angemeldet.',
             'logon-required-error' => 'Für diesen Inhalt müssen Sie angemeldet sein.',
 			'user-create-error' => 'Der Zugang konnte nicht angelegt werden.',
-
+            'user-repo-error'            => 'Sie müssen sich mit einem Zugang für diesen Bereich anmelden.',
         ],
     ]    
 ];

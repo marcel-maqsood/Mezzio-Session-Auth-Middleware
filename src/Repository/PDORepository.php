@@ -8,7 +8,6 @@ use MazeDEV\SessionAuth\SessionAuthMiddleware;
 use Mezzio\Authentication\Exception;
 use Mezzio\Authentication\UserInterface;
 use Mezzio\Authentication\UserRepositoryInterface;
-use Mezzio\Session\Session;
 use PDO;
 use PDOException;
 use Webmozart\Assert\Assert;
@@ -97,14 +96,15 @@ class PDORepository implements UserRepositoryInterface
 
         if (password_verify(($password ?? '') . $this->authConfig['security']['salt'], $passwordHash)) 
         {
-            return ($this->userFactory)(
+			return ($this->userFactory)(
                 $username,
                 $this->getUserRoles($username),
-				[
-					'path' => $table,
-				],
+                [
+					'path' => SessionAuthMiddleware::$tableOverride
+				]
             );
         }
+
         return null;
     }
 
