@@ -163,9 +163,10 @@ class PDORepository implements UserRepositoryInterface
     {
         if (! isset($this->reporsitoryConfig['sql_get_details'])) 
         {
-            return [];
+            return [
+				'path' => SessionAuthMiddleware::$tableOverride
+			];
         }
-
         Assert::string($this->reporsitoryConfig['sql_get_details']);
 
         if (false === strpos($this->reporsitoryConfig['sql_get_details'], ':identity')) 
