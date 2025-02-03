@@ -12,6 +12,7 @@ return [
     'authentication' => [
         'redirect' => '/', //- The Link at which unauthorized request get redirect (As of PHPSession), however, the SessionAuthMiddleware won't use it.
 		'username-forwarding' => true,
+        'permission-forwarding' => false,
         'passwordResetOffset' => '2592000',
 		'allowWildcard' => true,
         'username' => 'username', //- The key in which the username is within $_POST. default: 'username'

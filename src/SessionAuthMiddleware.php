@@ -68,12 +68,23 @@ class SessionAuthMiddleware implements MiddlewareInterface
     {
         $this->referer = $request->getHeaderLine('Referer');
 
+		self::$tableOverride = $this->authConfig['repository']['table'];
+		self::$permissionManager->setTablePrefix(self::$tableOverride);
+
         if(isset($this->authConfig['username-forwarding']) && $this->authConfig['username-forwarding'] == true)
         {
-            $session = $request->getAttribute('session');
+
+
+			$session = $request->getAttribute('session');
             if($session->has(UserInterface::class))
             {
-                $request = $request->withAttribute('adminName', $session->get(UserInterface::class)['username']);
+				$this->username = $session->get(UserInterface::class)['username'];
+                $request = $request->withAttribute('adminName', $this->username);
+
+				if(isset($this->authConfig['permission-forwarding']) && $this->authConfig['permission-forwarding'] == true)
+				{
+					self::$permissionManager->fetchUserPermissions($this->username);
+				}
                 
                 if(isset($session->get(UserInterface::class)['details']) && isset($session->get(UserInterface::class)['details']['path']))
                 {
@@ -94,8 +105,6 @@ class SessionAuthMiddleware implements MiddlewareInterface
 		{
 			return $handler->handle($request);
 		}
-
-		self::$tableOverride = $this->authConfig['repository']['table'];
 
         if(isset($this->authConfig['repository']['table_override']))
         {
@@ -209,13 +218,6 @@ class SessionAuthMiddleware implements MiddlewareInterface
             $this->errorMessage = $this->messages['error']['session-detail-error'];
             return false;
         }
-
-        $currentUserInterface = $session->get(UserInterface::class);
-		if($currentUserInterface['details']['path'] !== self::$tableOverride)
-		{
-			$this->errorMessage = $this->messages['error']['user-repo-error'];
-			return false;
-		}
 
 		self::$permissionManager->fetchUserPermissions($this->username);
 
