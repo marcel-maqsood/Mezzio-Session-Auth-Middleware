@@ -81,16 +81,19 @@ class SessionAuthMiddleware implements MiddlewareInterface
 				$this->username = $session->get(UserInterface::class)['username'];
                 $request = $request->withAttribute('adminName', $this->username);
 
-				if(isset($this->authConfig['permission-forwarding']) && $this->authConfig['permission-forwarding'] == true)
-				{
-					self::$permissionManager->fetchUserPermissions($this->username);
-				}
-                
+
                 if(isset($session->get(UserInterface::class)['details']) && isset($session->get(UserInterface::class)['details']['path']))
                 {
                     $request = $request->withAttribute('userPath', $session->get(UserInterface::class)['details']['path']);
+					self::$tableOverride = $session->get(UserInterface::class)['details']['path'];
                 }
-            }
+				if(isset($this->authConfig['permission-forwarding']) && $this->authConfig['permission-forwarding'] == true)
+				{
+					self::$permissionManager->setTablePrefix(self::$tableOverride);
+					self::$permissionManager->fetchUserPermissions($this->username);
+				}
+
+			}
         }
 
         if(!$this->isRefererInternal($request))
