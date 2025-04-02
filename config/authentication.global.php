@@ -84,6 +84,13 @@ return [
             'name' => 'name',
             'display' => 'hidden'
         ],
+		'user_settings' => [
+			'tableName' => 'user_groups',
+			'identifier' => 'settingId',
+			'user_identifier' => 'loginId',
+			'icon_path' => 'icon_path',
+			'language' => 'language',
+		],
         'user_permissions' => [
             'tableName' => 'user_permissions',
             'identifier' => 'permissionId',
