@@ -23,6 +23,53 @@ class PermissionManager
 
 	private bool $fetched = false;
 
+	public function updateUser(array $updates)
+	{
+		if (self::$user === null) {
+			return false;
+		}
+		$userUpdate = $this->persistentPDO->update($this->tableConfig[self::$prefix]['tableName'], $updates,
+			$this->tableConfig[self::$prefix]['identifier'] . ' = ' . self::$user->{$this->tableConfig[self::$prefix]['identifier']},
+			false);
+
+		if (!$userUpdate) {
+			return false;
+		}
+
+		foreach ($updates as $key => $value)
+		{
+			self::$user->{$key} = $value;
+		}
+
+		return true;
+	}
+
+	public function updateUserSettings(array $updates)
+	{
+		if (self::$user === null) {
+			return false;
+		}
+
+		if (self::$userSettings === null)
+		{
+			return false;
+		}
+
+		$userUpdate = $this->persistentPDO->update($this->tableConfig[self::$prefix . "_settings"]['tableName'], $updates,
+			$this->tableConfig[self::$prefix . "_settings"]['user_identifier'] . ' = ' . self::$user->{$this->tableConfig[self::$prefix . "_settings"]['user_identifier']},
+			false);
+
+		if (!$userUpdate) {
+			return false;
+		}
+
+		foreach ($updates as $key => $value)
+		{
+			self::$userSettings->{$key} = $value;
+		}
+		return true;
+	}
+
 	public function __construct(PersistentPDO $persistentPDO, array $tableConfig, array $authConfig)
 	{
 		$this->persistentPDO = $persistentPDO;
