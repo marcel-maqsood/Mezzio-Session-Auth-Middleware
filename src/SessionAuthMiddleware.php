@@ -71,30 +71,27 @@ class SessionAuthMiddleware implements MiddlewareInterface
 		self::$tableOverride = $this->authConfig['repository']['table'];
 		self::$permissionManager->setTablePrefix(self::$tableOverride);
 
-        if(isset($this->authConfig['username-forwarding']) && $this->authConfig['username-forwarding'] == true)
-        {
-
-
-			$session = $request->getAttribute('session');
-            if($session->has(UserInterface::class))
-            {
-				$this->username = $session->get(UserInterface::class)['username'];
-                $request = $request->withAttribute('adminName', $this->username);
-
-
-                if(isset($session->get(UserInterface::class)['details']) && isset($session->get(UserInterface::class)['details']['path']))
-                {
-                    $request = $request->withAttribute('userPath', $session->get(UserInterface::class)['details']['path']);
-					self::$tableOverride = $session->get(UserInterface::class)['details']['path'];
-                }
-				if(isset($this->authConfig['permission-forwarding']) && $this->authConfig['permission-forwarding'] == true)
-				{
-					self::$permissionManager->setTablePrefix(self::$tableOverride);
-					self::$permissionManager->fetchUserPermissions($this->username);
-				}
-
+		$session = $request->getAttribute('session');
+		if($session->has(UserInterface::class))
+		{
+			$this->username = $session->get(UserInterface::class)['username'];
+			if(isset($this->authConfig['username-forwarding']) && $this->authConfig['username-forwarding'] == true)
+			{
+				$request = $request->withAttribute('adminName', $this->username);
 			}
-        }
+
+			if(isset($session->get(UserInterface::class)['details']) && isset($session->get(UserInterface::class)['details']['path']))
+			{
+				$request = $request->withAttribute('userPath', $session->get(UserInterface::class)['details']['path']);
+				self::$tableOverride = $session->get(UserInterface::class)['details']['path'];
+			}
+
+			if(isset($this->authConfig['permission-forwarding']) && $this->authConfig['permission-forwarding'] == true)
+			{
+				self::$permissionManager->setTablePrefix(self::$tableOverride);
+				self::$permissionManager->fetchUserPermissions($this->username);
+			}
+		}
 
         if(!$this->isRefererInternal($request))
         {
