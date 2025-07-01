@@ -9,6 +9,8 @@ class PermissionManager
 {
 	private array $mergedPermissions = [];
 
+	private array $allGroups = [];
+
 	private array $allPermissions;
 
 	private static string $prefix = "";
@@ -153,9 +155,13 @@ class PermissionManager
 				[
 					'for' => $this->tableConfig[$this->getTablePrefix() . 'group_permission_relation']['permission_identifier'],
 					'as' => 'permissions',
+				],
+				[
+					'for' => $this->tableConfig[$this->getTablePrefix() . 'groups']['name'],
+					'as' => 'group_name',
 				]
 			],
-			'identifier' => $this->tableConfig[$this->getTablePrefix() . 'groups']['tableName'] . '.' . $this->tableConfig[$this->getTablePrefix() . 'groups']['identifier']
+			'identifier' => $this->tableConfig[self::$prefix]['tableName'] . '.' . $this->tableConfig[self::$prefix]['identifier']
 		];
 
 		$permissions = $this->persistentPDO->getAll(
@@ -168,12 +174,26 @@ class PermissionManager
 			false
 		);
 
-		if($permissions == null || $permissions[$userId]['permissions'] == null)
+		if($permissions == null)
 		{
 			return;
 		}
 
-		$permissionIds = explode(",", $permissions[$userId]['permissions']);
+		if(!empty($permissions[$userId]["group_name"]))
+		{
+			$groups = explode(",", $permissions[$userId]['group_name']) ?? [];
+			foreach($groups as $group)
+			{
+				$this->allGroups[] = strtolower(str_replace(" ", "", $group));
+			}
+		}
+
+		if($permissions[$userId]['permissions'] == null)
+		{
+			return;
+		}
+
+		$permissionIds = explode(",", $permissions[$userId]['permissions'])  ?? [];
 
 		$allIdsWhereStatement = "";
 		foreach ($permissionIds as $permissionId)
@@ -206,6 +226,12 @@ class PermissionManager
 		{
 			$this->mergedPermissions[] = $group[$this->tableConfig[$this->getTablePrefix() . 'permissions']['value']];
 		}
+	}
+
+	public function userHasGroup(string $groupName)
+	{
+		$name = strtolower(str_replace(" ", "", $groupName));
+		return in_array($name, $this->allGroups);
 	}
 
 	public function userHasPermission(string $permission): bool
