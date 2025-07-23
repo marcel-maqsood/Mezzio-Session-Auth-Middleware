@@ -21,9 +21,8 @@ class PermissionManager
 
 	private static $user;
 
-	private static $userSettings;
-
 	private bool $fetched = false;
+	private bool $userDataFetched = false;
 
 	public function updateUser(array $updates)
 	{
@@ -52,11 +51,6 @@ class PermissionManager
 			return false;
 		}
 
-		if (self::$userSettings === null)
-		{
-			return false;
-		}
-
 		$userUpdate = $this->persistentPDO->update($this->tableConfig[self::$prefix . "_settings"]['tableName'], $updates,
 			$this->tableConfig[self::$prefix . "_settings"]['user_identifier'] . ' = ' . self::$user->{$this->tableConfig[self::$prefix . "_settings"]['user_identifier']},
 			false);
@@ -67,7 +61,7 @@ class PermissionManager
 
 		foreach ($updates as $key => $value)
 		{
-			self::$userSettings->{$key} = $value;
+			self::$user->{$key} = $value;
 		}
 		return true;
 	}
@@ -77,44 +71,6 @@ class PermissionManager
 		$this->persistentPDO = $persistentPDO;
 		$this->tableConfig = $tableConfig;
 		$this->authConfig = $authConfig;
-	}
-
-	public function fetchData()
-	{
-		$allPermissions = $this->persistentPDO->getAll($this->tableConfig[$this->getTablePrefix() . 'permissions']['tableName']);
-
-		if($allPermissions == null)
-		{
-			return;
-		}
-
-		foreach ($allPermissions as $permission)
-		{
-			if(isset($allPermissions[$permission[$this->tableConfig[$this->getTablePrefix() . 'permissions']['noPermFallback']]]))
-			{
-				$this->allPermissions[$permission[$this->tableConfig[$this->getTablePrefix() . 'permissions']['value']]] = [
-					$this->tableConfig[$this->getTablePrefix() . 'permissions']['value'] =>
-						$allPermissions[$permission[$this->tableConfig[$this->getTablePrefix() . 'permissions']['noPermFallback']]][$this->tableConfig[$this->getTablePrefix() . 'permissions']['value']],
-				];
-			}
-			else
-			{
-				$this->allPermissions[$permission[$this->tableConfig[$this->getTablePrefix() . 'permissions']['value']]] = [
-					$this->tableConfig[$this->getTablePrefix() . 'permissions']['value'] => null
-				];
-			}
-
-			$this->allPermissions[$permission[$this->tableConfig[$this->getTablePrefix() . 'permissions']['value']]] += [
-				$this->tableConfig[$this->getTablePrefix() . 'permissions']['allowBypass'] =>
-					$allPermissions[$permission[$this->tableConfig[$this->getTablePrefix() . 'permissions']['identifier']]][$this->tableConfig[$this->getTablePrefix() . 'permissions']['allowBypass']]
-			];
-		}
-		$this->fetched = true;
-	}
-
-	public function dataFetched()
-	{
-		return $this->fetched;
 	}
 
 	public function setTablePrefix(string $prefix)
@@ -131,102 +87,118 @@ class PermissionManager
 		return self::$prefix . "_";
 	}
 
-	public function fetchUserPermissions($username): void
+	public function fetchData()
 	{
-		$userId = $this->getUserId($username);
-
-		$groupJoins = [
-			[
-				'table' => $this->tableConfig[$this->getTablePrefix() . 'group_relation']['tableName'],
-				'on' => $this->tableConfig[self::$prefix ]['tableName'] . '.' . $this->tableConfig[self::$prefix ]['identifier'] . ' = ' . $this->tableConfig[$this->getTablePrefix() . 'group_relation']['tableName'] . '.' . $this->tableConfig[$this->getTablePrefix() . 'group_relation']['login_identifier']
-			],
-			[
-				'table' => $this->tableConfig[$this->getTablePrefix() . 'groups']['tableName'],
-				'on' => $this->tableConfig[$this->getTablePrefix() . 'group_relation']['tableName'] . '.' . $this->tableConfig[$this->getTablePrefix() . 'group_relation']['group_identifier'] . ' = ' . $this->tableConfig[$this->getTablePrefix() . 'groups']['tableName'] . '.' . $this->tableConfig[$this->getTablePrefix() . 'groups']['identifier']
-			],
-			[
-				'table' => $this->tableConfig[$this->getTablePrefix() . 'group_permission_relation']['tableName'],
-				'on' => $this->tableConfig[$this->getTablePrefix() . 'groups']['tableName'] . '.' . $this->tableConfig[$this->getTablePrefix() . 'groups']['identifier'] . ' = ' . $this->tableConfig[$this->getTablePrefix() . 'group_permission_relation']['tableName'] . '.' . $this->tableConfig[$this->getTablePrefix() . 'group_permission_relation']['group_identifier']
-			]
-		];
-
-		$groupDetails = [
-			'groups' => [
-				[
-					'for' => $this->tableConfig[$this->getTablePrefix() . 'group_permission_relation']['permission_identifier'],
-					'as' => 'permissions',
-				],
-				[
-					'for' => $this->tableConfig[$this->getTablePrefix() . 'groups']['name'],
-					'as' => 'group_name',
-				]
-			],
-			'identifier' => $this->tableConfig[self::$prefix]['tableName'] . '.' . $this->tableConfig[self::$prefix]['identifier']
-		];
-
-		$permissions = $this->persistentPDO->getAll(
-			$this->tableConfig[self::$prefix]['tableName'], // Tabelle
-			$this->tableConfig[self::$prefix]['identifier'] . ' = ' . $userId,
-			$groupJoins,
-			$groupDetails,
-			'',
-			[],
-			false
-		);
-
-		if($permissions == null)
+		if($this->fetched)
 		{
 			return;
 		}
+		$permCfg = $this->tableConfig[$this->getTablePrefix() . 'permissions'];
+		$allPermissions = $this->persistentPDO->getAll($permCfg['tableName']);
 
-		if(!empty($permissions[$userId]["group_name"]))
-		{
-			$groups = explode(",", $permissions[$userId]['group_name']) ?? [];
-			foreach($groups as $group)
-			{
-				$this->allGroups[] = strtolower(str_replace(" ", "", $group));
-			}
-		}
-
-		if($permissions[$userId]['permissions'] == null)
-		{
+		if ($allPermissions === null) {
 			return;
 		}
 
-		$permissionIds = explode(",", $permissions[$userId]['permissions'])  ?? [];
+		foreach ($allPermissions as $permission) {
+			$permValueKey = $permCfg['value'];
+			$permIdKey = $permCfg['identifier'];
+			$fallbackKey = $permCfg['noPermFallback'];
+			$bypassKey = $permCfg['allowBypass'];
 
-		$allIdsWhereStatement = "";
-		foreach ($permissionIds as $permissionId)
-		{
-			if($permissionId == null || $permissionId == "")
-			{
-				continue;
-			}
+			$permName = $permission[$permValueKey];
+			$fallback = $permission[$fallbackKey];
 
-			if($allIdsWhereStatement == "")
-			{
-				$allIdsWhereStatement .= $this->tableConfig[$this->getTablePrefix() . 'permissions']['identifier'] . ' = ' . $permissionId;
-				continue;
-			}
+			$value = isset($allPermissions[$fallback])
+				? $allPermissions[$fallback][$permValueKey]
+				: null;
 
-			$allIdsWhereStatement .= ' OR ' . $this->tableConfig[$this->getTablePrefix() . 'permissions']['identifier'] . ' = ' . $permissionId;
+			$this->allPermissions[$permName] = [
+				$permValueKey => $value,
+				$bypassKey => $allPermissions[$permission[$permIdKey]][$bypassKey]
+			];
 		}
 
-		$groups = $this->persistentPDO->getAll(
-			$this->tableConfig[$this->getTablePrefix() . 'permissions']['tableName'],
-			$allIdsWhereStatement,
-			[],
-			[],
-			'',
-			[],
-			false
-		);
-
-		foreach ($groups as $group)
-		{
-			$this->mergedPermissions[] = $group[$this->tableConfig[$this->getTablePrefix() . 'permissions']['value']];
-		}
+		$this->fetched = true;
 	}
+
+	public function dataFetched()
+	{
+		return $this->fetched;
+	}
+
+	public function fetchUserData($username): void
+	{
+		if($this->userDataFetched)
+		{
+			return;
+		}
+		$sql = "
+			SELECT 
+				u.*,
+		
+				us.{$this->tableConfig[$this->getTablePrefix() . 'settings']['language']}     AS language,
+				us.{$this->tableConfig[$this->getTablePrefix() . 'settings']['icon_path']}    AS settingsIcon,
+		
+				g.{$this->tableConfig[$this->getTablePrefix() . 'groups']['identifier']}      AS groupId,
+				g.{$this->tableConfig[$this->getTablePrefix() . 'groups']['name']}            AS groupName,
+				g.{$this->tableConfig[$this->getTablePrefix() . 'groups']['hidden']}          AS groupHidden,
+				g.{$this->tableConfig[$this->getTablePrefix() . 'groups']['creator']}         AS groupCreator,
+				g.{$this->tableConfig[$this->getTablePrefix() . 'groups']['isLecturer']}      AS isLecturer,
+				g.{$this->tableConfig[$this->getTablePrefix() . 'groups']['isParticipant']}   AS isParticipant,
+		
+				p.{$this->tableConfig[$this->getTablePrefix() . 'permissions']['identifier']} AS permissionId,
+				p.{$this->tableConfig[$this->getTablePrefix() . 'permissions']['name']}       AS permissionName,
+				p.{$this->tableConfig[$this->getTablePrefix() . 'permissions']['value']}      AS permissionValue,
+				p.{$this->tableConfig[$this->getTablePrefix() . 'permissions']['noPermFallback']} AS noPermFallback,
+				p.{$this->tableConfig[$this->getTablePrefix() . 'permissions']['allowBypass']}    AS allowBypass,
+				p.{$this->tableConfig[$this->getTablePrefix() . 'permissions']['hidden']}         AS permissionHidden
+		
+			FROM {$this->tableConfig[self::$prefix]['tableName']} u
+		
+			LEFT JOIN {$this->tableConfig[$this->getTablePrefix() . 'settings']['tableName']} us 
+				ON us.{$this->tableConfig[$this->getTablePrefix() . 'settings']['user_identifier']} = u.{$this->tableConfig[self::$prefix]['identifier']}
+		
+			LEFT JOIN {$this->tableConfig[$this->getTablePrefix() .'group_relation']['tableName']} ugr 
+				ON ugr.{$this->tableConfig[$this->getTablePrefix() .'group_relation']['login_identifier']} = u.{$this->tableConfig[self::$prefix]['identifier']}
+		
+			LEFT JOIN {$this->tableConfig[$this->getTablePrefix() .'groups']['tableName']} g 
+				ON g.{$this->tableConfig[$this->getTablePrefix() .'groups']['identifier']} = ugr.{$this->tableConfig[$this->getTablePrefix() .'group_relation']['group_identifier']}
+		
+			LEFT JOIN {$this->tableConfig[$this->getTablePrefix() .'group_permission_relation']['tableName']} gpr 
+				ON gpr.{$this->tableConfig[$this->getTablePrefix() .'group_permission_relation']['group_identifier']} = g.{$this->tableConfig[$this->getTablePrefix() .'groups']['identifier']}
+		
+			LEFT JOIN {$this->tableConfig[$this->getTablePrefix() .'permissions']['tableName']} p 
+				ON p.{$this->tableConfig[$this->getTablePrefix() .'permissions']['identifier']} = gpr.{$this->tableConfig[$this->getTablePrefix() .'group_permission_relation']['permission_identifier']}
+		
+			WHERE u.{$this->tableConfig[self::$prefix]['loginName']} = :username
+		";
+
+		$dataset          = $this->persistentPDO->getAllBase($sql, false, ['username' => $username]);
+		if($dataset == null)
+		{
+			return;
+		}
+
+		$dataset = array_values($dataset)[0];
+
+		self::$user = json_decode(json_encode($dataset));
+
+		$this->allGroups  = explode(",", strtolower(str_replace(" ", "", $dataset["groupName"] ?? "")));
+		$this->mergedPermissions = explode(",", $dataset["permissionValue"] ?? "");
+		$this->userDataFetched = true;
+	}
+
+	public static function getUser()
+	{
+		return self::$user;
+	}
+
+	public static function getUserSettings()
+	{
+		return self::$user;
+	}
+
 
 	public function userHasGroup(string $groupName)
 	{
@@ -274,50 +246,4 @@ class PermissionManager
 
 		return "home";
 	}
-
-	public function getUserId($loginName) : string|null
-	{
-
-		$conditions = [];
-		foreach ($this->authConfig['repository']['fields']['identities'] as $identityField)
-		{
-			$conditions[] =
-				[
-					'field' => $identityField,
-					'operator' => '=',
-					'queue' => $loginName,
-					'logicalOperator' => 'OR'
-				];
-		}
-
-		self::$user = $this->persistentPDO->get(
-			'*',
-			$this->tableConfig[self::$prefix]['tableName'],
-			$conditions
-		);
-
-		if(self::$user == null)
-		{
-			return null;
-		}
-		self::$userSettings = $this->persistentPDO->get(
-			'*',
-			$this->tableConfig[self::$prefix . "_settings"]['tableName'],
-			$this->tableConfig[self::$prefix . "_settings"]['user_identifier'] . " = " . self::$user->{$this->tableConfig[self::$prefix]['identifier']},
-			[], [], false
-		);
-
-		return self::$user->{$this->tableConfig[self::$prefix]['identifier']};
-	}
-
-	public static function getUser()
-	{
-		return self::$user;
-	}
-
-	public static function getUserSettings()
-	{
-		return self::$userSettings;
-	}
-
 }

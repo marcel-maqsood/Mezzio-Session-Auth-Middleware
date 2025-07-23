@@ -8,7 +8,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
-use Mezzio\Session\SessionInterface;         
+use Mezzio\Session\SessionInterface;
 use Mezzio\Authentication\UserInterface;
 use MazeDEV\DatabaseConnector\PersistentPDO;
 use Mezzio\Authentication\DefaultUser;
@@ -89,7 +89,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
 			if(isset($this->authConfig['permission-forwarding']) && $this->authConfig['permission-forwarding'] == true)
 			{
 				self::$permissionManager->setTablePrefix(self::$tableOverride);
-				self::$permissionManager->fetchUserPermissions($this->username);
+				self::$permissionManager->fetchUserData($this->username);
 			}
 		}
 
@@ -159,7 +159,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
             }
             return $handler->handle($request);
         }
-            
+
         if($redirect !==  null)
         {
             //Always a RedirectResponse towards our login form, as this only happens if the request isn't authorized.
@@ -186,7 +186,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
 
         //If the given route is not defined as a permission within our database, we redirect it to "home".
         $loginUrl = $this->urlHelper->generate($this->fallbackRoute);
-        if (!$session->has(UserInterface::class)) 
+        if (!$session->has(UserInterface::class))
         {
 			if(!$isLoginRoute)
 			{
@@ -219,7 +219,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
             return false;
         }
 
-		self::$permissionManager->fetchUserPermissions($this->username);
+		self::$permissionManager->fetchUserData($this->username);
 
         $user = self::$permissionManager::getUser();
 
@@ -296,7 +296,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
 
     /**
      * Tries to get the username in session
-     * 
+     *
      * @return bool - Is a username present?
      */
     private function setUsername(SessionInterface $session) : bool
