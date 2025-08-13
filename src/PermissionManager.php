@@ -171,7 +171,7 @@ class PermissionManager
 			LEFT JOIN {$this->tableConfig[$this->getTablePrefix() .'permissions']['tableName']} p 
 				ON p.{$this->tableConfig[$this->getTablePrefix() .'permissions']['identifier']} = gpr.{$this->tableConfig[$this->getTablePrefix() .'group_permission_relation']['permission_identifier']}
 		
-			WHERE u.{$this->tableConfig[self::$prefix]['loginName']} = :username
+			WHERE u.{$this->tableConfig[self::$prefix]['loginName']} = :username OR u.{$this->tableConfig[self::$prefix]['loginMail']} = :username
 		";
 
 		$dataset          = $this->persistentPDO->getAllBase($sql, false, ['username' => $username]);
