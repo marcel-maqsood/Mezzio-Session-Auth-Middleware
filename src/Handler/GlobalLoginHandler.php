@@ -58,7 +58,14 @@ class GlobalLoginHandler implements RequestHandlerInterface
     private $loginUrl;
 	private $resetTarget;
 
-    public function __construct(TemplateRendererInterface $renderer, PhpSession $session, UrlHelper $urlHelper, $config, $loginHandlingConfig, $tableConfig, $sessionAuth, PersistentPDO $persistentPDO)
+    private $messages;
+
+    public function __construct(
+        TemplateRendererInterface $renderer, PhpSession $session, 
+        rlHelper $urlHelper, $config, $loginHandlingConfig, 
+        $tableConfig, $sessionAuth, PersistentPDO $persistentPDO,
+        $messages
+    )
     {
         $this->renderer = $renderer;
         $this->session = $session;
@@ -70,6 +77,7 @@ class GlobalLoginHandler implements RequestHandlerInterface
         $this->sessionAuth = $sessionAuth;
         $this->persistentPDO = $persistentPDO;
         $this->tableConfig = $tableConfig;
+        $this->messages = $messages;
     }
     public function handle(ServerRequestInterface $request) : ResponseInterface
     {
@@ -152,17 +160,16 @@ class GlobalLoginHandler implements RequestHandlerInterface
                 $session->unset(UserInterface::class);
                 return new HtmlResponse($this->renderer->render(
                     'app::Login',
-                    ['error' => 'Looks like we ran into some issues; please try again.', 'handler' => $this->loginTitleName, 'resetDestination' => $this->resetTarget]
+                    ['error' => $this->messages['error']['session-detail-error'], 'handler' => $this->loginTitleName, 'resetDestination' => $this->resetTarget]
                 ));
             }
 
             return new RedirectResponse($this->loginUrl);
         }
- 
         // Login failed
         return new HtmlResponse($this->renderer->render(
             'app::Login',
-            ['error' => 'Invalid credentials; please try again', 'handler' => $this->loginTitleName, 'resetDestination' => $this->resetTarget]
+            ['error' => $this->messages['error']['credential-error'], 'handler' => $this->loginTitleName, 'resetDestination' => $this->resetTarget]
         ));
     }
 }

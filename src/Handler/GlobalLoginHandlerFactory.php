@@ -39,6 +39,22 @@ class GlobalLoginHandlerFactory
             ? $container->get(TemplateRendererInterface::class)
             : null;
 
-        return new GlobalLoginHandler($template, $container->get(PhpSession::class), $container->get(UrlHelper::class), $config['authentication'], $loginHandlingConfig, $tableConfig, $container->get(SessionAuthMiddleware::class), $container->get(PersistentPDO::class));
+
+        $messages = $config['messages'] ?? null;
+
+        if ($messages === null) 
+        {
+            throw new Exception\InvalidConfigException(
+                "'messages'-Config is missing in Config, please check our docs: " . $config['authdocs'] . '#user-content-messages'
+            );
+        }
+
+        return new GlobalLoginHandler(
+            $template, $container->get(PhpSession::class), 
+            $container->get(UrlHelper::class), $config['authentication'], 
+            $loginHandlingConfig, $tableConfig, 
+            $container->get(SessionAuthMiddleware::class), $container->get(PersistentPDO::class),
+            $messages
+        );
     }
 }

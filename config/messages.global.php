@@ -12,6 +12,7 @@ return [
             'logon-required-error' => 'Für diesen Inhalt müssen Sie angemeldet sein.',
 			'user-create-error' => 'Der Zugang konnte nicht angelegt werden.',
             'user-repo-error'            => 'Sie müssen sich mit einem Zugang für diesen Bereich anmelden.',
+            'credential-error'           => 'Fehlerhafte Zugangsdaten'
         ],
     ]    
 ];
