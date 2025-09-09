@@ -62,7 +62,7 @@ class GlobalLoginHandler implements RequestHandlerInterface
 
     public function __construct(
         TemplateRendererInterface $renderer, PhpSession $session, 
-        rlHelper $urlHelper, $config, $loginHandlingConfig, 
+        UrlHelper $urlHelper, $config, $loginHandlingConfig, 
         $tableConfig, $sessionAuth, PersistentPDO $persistentPDO,
         $messages
     )
