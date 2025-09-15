@@ -25,7 +25,8 @@ return [
 					'email'
 				],
 				'password' => 'password' //- The key, with which we check if the password in $_POST is equal.
-            ]
+            ],
+            'disable-check' => true, //if the auth process should check if the user is disabled.
         ],
         'security' => [ //- An array for our security features.
             'algo' => 'sha-256', //- The algorithm used for generating the SessionHash stored in the database. default: 'sha-256'
@@ -69,6 +70,7 @@ return [
             'identifier' => 'loginId',
             'loginName' => 'username',
             'display' => 'hidden',
+            'disabled' => 'disabled',
 			'resetHash' => 'forgothash',
 			'resetValid' => 'forgotvalid'
         ],

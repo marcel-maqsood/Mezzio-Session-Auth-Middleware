@@ -20,188 +20,195 @@ use function strpos;
 
 class PDORepository implements UserRepositoryInterface
 {
-    private PDO $pdo;
-    private PersistentPDO $persistentPDO;
+	private PDO $pdo;
+	private PersistentPDO $persistentPDO;
 
-    private $authConfig;
-    private $config;
+	private $authConfig;
+	private $config;
 
-    private $tableConfig;
+	private $tableConfig;
 
-    private $userFactory;
+	private $userFactory;
 
-    public function __construct(
-        PersistentPDO $persistentPDO,
-        array $authConfig,
-        array $tableConfig,
-        callable $userFactory
-    ) 
-    {
-        $this->persistentPDO = $persistentPDO;
-        $this->pdo = $persistentPDO->getPDO();
-        $this->reporsitoryConfig = $authConfig['repository'];
-        $this->authConfig = $authConfig;
-        $this->tableConfig = $tableConfig;
+	public function __construct(
+		PersistentPDO $persistentPDO,
+		array $authConfig,
+		array $tableConfig,
+		callable $userFactory
+	)
+	{
+		$this->persistentPDO = $persistentPDO;
+		$this->pdo = $persistentPDO->getPDO();
+		$this->reporsitoryConfig = $authConfig['repository'];
+		$this->authConfig = $authConfig;
+		$this->tableConfig = $tableConfig;
 
-        // Provide type safety for the composed user factory.
-        $this->userFactory = static function (
-            string $identity,
-            array $roles = [],
-            array $details = []
-        ) use ($userFactory): UserInterface 
-        {
-            return $userFactory($identity, $roles, $details);
-        };
-    }
+		// Provide type safety for the composed user factory.
+		$this->userFactory = static function (
+			string $identity,
+			array $roles = [],
+			array $details = []
+		) use ($userFactory): UserInterface
+		{
+			return $userFactory($identity, $roles, $details);
+		};
+	}
 
-    /**
-     * {@inheritDoc}
-     */
-    public function authenticate(string $username, ?string $password = null, ?string $currentRoute = ""): ?UserInterface
-    {
+	/**
+	 * {@inheritDoc}
+	 */
+	public function authenticate(string $username, ?string $password = null, ?string $currentRoute = ""): ?UserInterface
+	{
+		$table = SessionAuthMiddleware::$tableOverride ?: $this->reporsitoryConfig['table'];
+
+		$doDisableCheck = isset($this->reporsitoryConfig['disable-check'])
+			? (bool)$this->reporsitoryConfig['disable-check']
+			: false;
+
+		$disabledField = ($doDisableCheck && !empty($this->tableConfig[$table]['disabled']))
+			? $this->tableConfig[$table]['disabled']
+			: null;
 
 		$conditions = [];
+		$isFirst = true;
 
-		foreach ($this->reporsitoryConfig['fields']['identities'] as $identityField)
-		{
-			$conditions[] =
-			[
-                'field' => $identityField,
-				'operator' => '=',
-				'queue' => $username,
-				'logicalOperator' => 'OR'
+		foreach ($this->reporsitoryConfig['fields']['identities'] as $identityField) {
+			$conditions[] = [
+				'field'            => $identityField,
+				'operator'         => '=',
+				'queue'            => $username,
+				'logicalOperator'  => $isFirst ? '' : 'OR',
 			];
+
+			if ($disabledField !== null) {
+				$conditions[] = [
+					'field'            => $disabledField,
+					'operator'         => '=',
+					'queue'            => '0',
+					'logicalOperator'  => 'AND',
+				];
+			}
+
+			$isFirst = false;
 		}
 
-        $table = SessionAuthMiddleware::$tableOverride;
-        if($table == "" || $table == null)
-        {
-            $table = $this->reporsitoryConfig['table'];
-        }
+		$passwordHash = $this->persistentPDO->get(
+			$this->reporsitoryConfig['fields']['password'],
+			$this->tableConfig[$table]['tableName'],
+			$conditions,
+			[],
+			[],
+			false
+		);
 
-        $passwordHash = $this->persistentPDO->get(
-            $this->reporsitoryConfig['fields']['password'],
-            $this->tableConfig[$table]['tableName'],
-            $conditions,
-            [],
-            [],
-            false
-        );
+		if (empty($passwordHash)) {
+			return null;
+		}
 
-        if($passwordHash === null || $passwordHash === "")
-        {
-            //Username not in our db
-            return null;
-        }
-
-        if (password_verify(($password ?? '') . $this->authConfig['security']['salt'], $passwordHash)) 
-        {
+		if (password_verify(($password ?? '') . $this->authConfig['security']['salt'], $passwordHash)) {
 			return ($this->userFactory)(
-                $username,
-                $this->getUserRoles($username),
-                [
-					'path' => SessionAuthMiddleware::$tableOverride
-				]
-            );
-        }
+				$username,
+				$this->getUserRoles($username),
+				['path' => SessionAuthMiddleware::$tableOverride]
+			);
+		}
 
-        return null;
-    }
+		return null;
+	}
+	/**
+	 * Get the user roles if present.
+	 *
+	 * @psalm-return list<string>
+	 */
+	protected function getUserRoles(string $identity): array
+	{
+		if (! isset($this->reporsitoryConfig['sql_get_roles']))
+		{
+			return [];
+		}
 
-    /**
-     * Get the user roles if present.
-     *
-     * @psalm-return list<string>
-     */
-    protected function getUserRoles(string $identity): array
-    {
-        if (! isset($this->reporsitoryConfig['sql_get_roles'])) 
-        {
-            return [];
-        }
+		if (false === strpos($this->reporsitoryConfig['sql_get_roles'], ':identity'))
+		{
+			throw new Exception\InvalidConfigException(
+				'The sql_get_roles configuration setting must include an :identity parameter'
+			);
+		}
 
-        if (false === strpos($this->reporsitoryConfig['sql_get_roles'], ':identity')) 
-        {
-            throw new Exception\InvalidConfigException(
-                'The sql_get_roles configuration setting must include an :identity parameter'
-            );
-        }
+		try
+		{
+			$stmt = $this->pdo->prepare($this->reporsitoryConfig['sql_get_roles']);
+		}
+		catch (PDOException $e)
+		{
+			throw new Exception\RuntimeException(sprintf(
+				'Error preparing retrieval of user roles: %s',
+				$e->getMessage()
+			));
+		}
+		if (false === $stmt)
+		{
+			throw new Exception\RuntimeException(sprintf(
+				'Error preparing retrieval of user roles: unknown error'
+			));
+		}
+		$stmt->bindParam(':identity', $identity);
 
-        try 
-        {
-            $stmt = $this->pdo->prepare($this->reporsitoryConfig['sql_get_roles']);
-        } 
-        catch (PDOException $e) 
-        {
-            throw new Exception\RuntimeException(sprintf(
-                'Error preparing retrieval of user roles: %s',
-                $e->getMessage()
-            ));
-        }
-        if (false === $stmt) 
-        {
-            throw new Exception\RuntimeException(sprintf(
-                'Error preparing retrieval of user roles: unknown error'
-            ));
-        }
-        $stmt->bindParam(':identity', $identity);
+		if (! $stmt->execute())
+		{
+			return [];
+		}
 
-        if (! $stmt->execute()) 
-        {
-            return [];
-        }
+		$roles = [];
+		foreach ($stmt->fetchAll(PDO::FETCH_NUM) as $role)
+		{
+			$roles[] = (string) $role[0];
+		}
+		return $roles;
+	}
 
-        $roles = [];
-        foreach ($stmt->fetchAll(PDO::FETCH_NUM) as $role) 
-        {
-            $roles[] = (string) $role[0];
-        }
-        return $roles;
-    }
-
-    protected function getUserDetails(string $identity): array
-    {
-        if (! isset($this->reporsitoryConfig['sql_get_details'])) 
-        {
-            return [
+	protected function getUserDetails(string $identity): array
+	{
+		if (! isset($this->reporsitoryConfig['sql_get_details']))
+		{
+			return [
 				'path' => SessionAuthMiddleware::$tableOverride
 			];
-        }
-        Assert::string($this->reporsitoryConfig['sql_get_details']);
+		}
+		Assert::string($this->reporsitoryConfig['sql_get_details']);
 
-        if (false === strpos($this->reporsitoryConfig['sql_get_details'], ':identity')) 
-        {
-            throw new Exception\InvalidConfigException(
-                'The sql_get_details configuration setting must include a :identity parameter'
-            );
-        }
+		if (false === strpos($this->reporsitoryConfig['sql_get_details'], ':identity'))
+		{
+			throw new Exception\InvalidConfigException(
+				'The sql_get_details configuration setting must include a :identity parameter'
+			);
+		}
 
-        try 
-        {
-            $stmt = $this->pdo->prepare($this->reporsitoryConfig['sql_get_details']);
-        } 
-        catch (PDOException $e) 
-        {
-            throw new Exception\RuntimeException(sprintf(
-                'Error preparing retrieval of user details: %s',
-                $e->getMessage()
-            ));
-        }
-        if (false === $stmt) 
-        {
-            throw new Exception\RuntimeException(sprintf(
-                'Error preparing retrieval of user details: unknown error'
-            ));
-        }
-        $stmt->bindParam(':identity', $identity);
+		try
+		{
+			$stmt = $this->pdo->prepare($this->reporsitoryConfig['sql_get_details']);
+		}
+		catch (PDOException $e)
+		{
+			throw new Exception\RuntimeException(sprintf(
+				'Error preparing retrieval of user details: %s',
+				$e->getMessage()
+			));
+		}
+		if (false === $stmt)
+		{
+			throw new Exception\RuntimeException(sprintf(
+				'Error preparing retrieval of user details: unknown error'
+			));
+		}
+		$stmt->bindParam(':identity', $identity);
 
-        if (! $stmt->execute()) 
-        {
-            return [];
-        }
+		if (! $stmt->execute())
+		{
+			return [];
+		}
 
-        $userDetails = $stmt->fetch(PDO::FETCH_ASSOC);
+		$userDetails = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        return $userDetails;
-    }
+		return $userDetails;
+	}
 }
