@@ -196,7 +196,7 @@ class PermissionManager
 		return self::$user;
 	}
 
-	public static function getGroups()
+	public function getGroups()
 	{
 		return $this->allGroups;
 	}
