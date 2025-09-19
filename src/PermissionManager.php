@@ -143,9 +143,6 @@ class PermissionManager
 				g.{$this->tableConfig[$this->getTablePrefix() . 'groups']['identifier']}      AS groupId,
 				g.{$this->tableConfig[$this->getTablePrefix() . 'groups']['name']}            AS groupName,
 				g.{$this->tableConfig[$this->getTablePrefix() . 'groups']['hidden']}          AS groupHidden,
-				g.{$this->tableConfig[$this->getTablePrefix() . 'groups']['creator']}         AS groupCreator,
-				g.{$this->tableConfig[$this->getTablePrefix() . 'groups']['isLecturer']}      AS isLecturer,
-				g.{$this->tableConfig[$this->getTablePrefix() . 'groups']['isParticipant']}   AS isParticipant,
 		
 				p.{$this->tableConfig[$this->getTablePrefix() . 'permissions']['identifier']} AS permissionId,
 				p.{$this->tableConfig[$this->getTablePrefix() . 'permissions']['name']}       AS permissionName,
