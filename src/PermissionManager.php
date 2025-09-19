@@ -199,6 +199,11 @@ class PermissionManager
 		return self::$user;
 	}
 
+	public static function getGroups()
+	{
+		return $this->allGroups;
+	}
+
 
 	public function userHasGroup(string $groupName)
 	{
