@@ -27,6 +27,7 @@ class PDORepository implements UserRepositoryInterface
 	private $config;
 
 	private $tableConfig;
+	private $reporsitoryConfig;
 
 	private $userFactory;
 
