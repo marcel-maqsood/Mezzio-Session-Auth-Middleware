@@ -41,7 +41,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
     private $fallbackRoute;
 
     public static $tableOverride = "";
-	public static $noAuthRoutes;
+    public static $noAuthRoutes;
 
     public function __construct(PersistentPDO $persistentPDO, $urlHelper, array $authConfig, array $sessionConfig, array $messages, array $tableConfig, array $loginHandlingConfig, array $noAuthRoutes )
     {
@@ -54,7 +54,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
         $this->messages = $messages;
         $this->tableConfig = $tableConfig;
         $this->loginHandlingConfig = $loginHandlingConfig;
-		self::$noAuthRoutes = $noAuthRoutes;
+        self::$noAuthRoutes = $noAuthRoutes;
         self::$permissionManager = new PermissionManager($persistentPDO, $tableConfig, $authConfig);
     }
 
@@ -68,30 +68,30 @@ class SessionAuthMiddleware implements MiddlewareInterface
     {
         $this->referer = $request->getHeaderLine('Referer');
 
-		self::$tableOverride = $this->authConfig['repository']['table'];
-		self::$permissionManager->setTablePrefix(self::$tableOverride);
+        self::$tableOverride = $this->authConfig['repository']['table'];
+        self::$permissionManager->setTablePrefix(self::$tableOverride);
 
-		$session = $request->getAttribute('session');
-		if($session->has(UserInterface::class))
-		{
-			$this->username = $session->get(UserInterface::class)['username'];
-			if(isset($this->authConfig['username-forwarding']) && $this->authConfig['username-forwarding'] == true)
-			{
-				$request = $request->withAttribute('adminName', $this->username);
-			}
+        $session = $request->getAttribute('session');
+        if($session->has(UserInterface::class))
+        {
+            $this->username = $session->get(UserInterface::class)['username'];
+            if(isset($this->authConfig['username-forwarding']) && $this->authConfig['username-forwarding'] == true)
+            {
+                $request = $request->withAttribute('adminName', $this->username);
+            }
 
-			if(isset($session->get(UserInterface::class)['details']) && isset($session->get(UserInterface::class)['details']['path']))
-			{
-				$request = $request->withAttribute('userPath', $session->get(UserInterface::class)['details']['path']);
-				self::$tableOverride = $session->get(UserInterface::class)['details']['path'];
-			}
+            if(isset($session->get(UserInterface::class)['details']) && isset($session->get(UserInterface::class)['details']['path']))
+            {
+                $request = $request->withAttribute('userPath', $session->get(UserInterface::class)['details']['path']);
+                self::$tableOverride = $session->get(UserInterface::class)['details']['path'];
+            }
 
-			if(isset($this->authConfig['permission-forwarding']) && $this->authConfig['permission-forwarding'] == true)
-			{
-				self::$permissionManager->setTablePrefix(self::$tableOverride);
-				self::$permissionManager->fetchUserData($this->username);
-			}
-		}
+            if(isset($this->authConfig['permission-forwarding']) && $this->authConfig['permission-forwarding'] == true)
+            {
+                self::$permissionManager->setTablePrefix(self::$tableOverride);
+                self::$permissionManager->fetchUserData($this->username);
+            }
+        }
 
         if(!$this->isRefererInternal($request))
         {
@@ -102,9 +102,9 @@ class SessionAuthMiddleware implements MiddlewareInterface
         self::$currentRoute = $routeResult->getMatchedRouteName();
 
         if(!self::$currentRoute)
-		{
-			return $handler->handle($request);
-		}
+        {
+            return $handler->handle($request);
+        }
 
         if(isset($this->authConfig['repository']['table_override']))
         {
@@ -121,36 +121,36 @@ class SessionAuthMiddleware implements MiddlewareInterface
         self::$permissionManager->setTablePrefix(self::$tableOverride);
         self::$permissionManager->fetchData();
 
-		foreach (self::$noAuthRoutes as $route => $data)
-		{
-			if(self::$currentRoute == $route)
-			{
-				return $handler->handle($request);
-			}
-		}
+        foreach (self::$noAuthRoutes as $route => $data)
+        {
+            if(self::$currentRoute == $route)
+            {
+                return $handler->handle($request);
+            }
+        }
 
         $this->fallbackRoute = self::$permissionManager->getFallbackRoute(self::$currentRoute);
 
         $isLoginRoute = false;
         $loginTarget = "";
-		$resetTarget = "";
+        $resetTarget = "";
 
         foreach($this->loginHandlingConfig as $key => $data)
-		{
-			if (self::$currentRoute == $key)
-			{
-				$loginTarget = $data['destination'];
-				$isLoginRoute = true;
-				break;
-			}
-		}
+        {
+            if (self::$currentRoute == $key)
+            {
+                $loginTarget = $data['destination'];
+                $isLoginRoute = true;
+                break;
+            }
+        }
 
-		$redirect = $this->handleAuth($request->getAttribute('session'), $isLoginRoute);
+        $redirect = $this->handleAuth($request->getAttribute('session'), $isLoginRoute);
 
-		if($this->errorMessage !== null)
-		{
-			\setcookie("error", $this->errorMessage, time() + 60, '/');
-		}
+        if($this->errorMessage !== null)
+        {
+            \setcookie("error", $this->errorMessage, time() + 60, '/');
+        }
         if($isLoginRoute)
         {
             if ($redirect === null && self::$permissionManager->userHasPermission($loginTarget))
@@ -170,16 +170,16 @@ class SessionAuthMiddleware implements MiddlewareInterface
         return $handler->handle($request);
     }
 
-	public static function generateRandomSalt($length = 255)
-	{
-		$characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
-		$randomString = '';
-		for ($i = 0; $i < $length; $i++)
-		{
-			$randomString .= $characters[rand(0, strlen($characters) - 1)];
-		}
-		return $randomString;
-	}
+    public static function generateRandomSalt($length = 255)
+    {
+        $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        $randomString = '';
+        for ($i = 0; $i < $length; $i++)
+        {
+            $randomString .= $characters[rand(0, strlen($characters) - 1)];
+        }
+        return $randomString;
+    }
 
     private function handleAuth(SessionInterface $session, $isLoginRoute = false) : ResponseInterface|null
     {
@@ -188,10 +188,10 @@ class SessionAuthMiddleware implements MiddlewareInterface
         $loginUrl = $this->urlHelper->generate($this->fallbackRoute);
         if (!$session->has(UserInterface::class))
         {
-			if(!$isLoginRoute)
-			{
-				$this->errorMessage = $this->messages['error']['logon-required-error'];
-			}
+            if(!$isLoginRoute)
+            {
+                $this->errorMessage = $this->messages['error']['logon-required-error'];
+            }
             $session->unset(UserInterface::class);
             return new RedirectResponse($this->urlHelper->generate($this->fallbackRoute));
         }
@@ -219,17 +219,17 @@ class SessionAuthMiddleware implements MiddlewareInterface
             return false;
         }
 
-		self::$permissionManager->fetchUserData($this->username);
+        self::$permissionManager->fetchUserData($this->username);
 
         $user = self::$permissionManager::getUser();
 
-		if($user == null)
-		{
-			$this->errorMessage = $this->messages['error']['logon-required-error'];
-			return false;
-		}
+        if($user == null)
+        {
+            $this->errorMessage = $this->messages['error']['logon-required-error'];
+            return false;
+        }
 
-		$this->username = $user->{$this->tableConfig[self::$tableOverride]['loginName']};
+        $this->username = $user->{$this->tableConfig[self::$tableOverride]['loginName']};
 
         $sessionStamp = $user->{$this->securityFields['stamp']};
 
@@ -248,7 +248,7 @@ class SessionAuthMiddleware implements MiddlewareInterface
         }
 
         $sessionMaxTime = (new \DateTime($sessionStamp))->add(new \DateInterval('PT' . $this->sessionConfig['gc_lifetime'] . 'S'))->getTimestamp();
-        $currentTime = (new \DateTime())->getTimestamp();
+        $currentTime = time();
 
         //we must check if the session is still alive by checking if timestamp is inside allowed time window here, as the request's session might have been altered.
         if($sessionMaxTime < $currentTime)
@@ -257,27 +257,27 @@ class SessionAuthMiddleware implements MiddlewareInterface
             return false;
         }
 
-		if($sessionMaxTime - $currentTime < 1800)
-		{
-			$this->persistentPDO->update(
-				$this->tableConfig[self::$tableOverride]['tableName'],
-				[
-					$this->securityFields['stamp'] => date("Y-m-d H:i:s", $currentTime)
-				],
-				$this->tableConfig[self::$tableOverride]['identifier'] . " = '" . $user->{$this->tableConfig[self::$tableOverride]['identifier']} . "'",
-				false
-			);
-		}
+        $lastStampTime = strtotime($sessionStamp);
+        if ($currentTime - $lastStampTime > 60) {
+            $this->persistentPDO->update(
+                $this->tableConfig[self::$tableOverride]['tableName'],
+                [
+                    $this->securityFields['stamp'] => date("Y-m-d H:i:s", $currentTime)
+                ],
+                $this->tableConfig[self::$tableOverride]['identifier'] . " = '" . $user->{$this->tableConfig[self::$tableOverride]['identifier']} . "'",
+                false
+            );
+        }
 
-		$session->set(DefaultUser::class, [
-			'username' => $user->{$this->tableConfig[self::$tableOverride]['loginName']},
-			'roles'    => [],
-			'details'  => [
-				'path' => self::$tableOverride,
-			],
-		]);
+        $session->set(DefaultUser::class, [
+            'username' => $user->{$this->tableConfig[self::$tableOverride]['loginName']},
+            'roles'    => [],
+            'details'  => [
+                'path' => self::$tableOverride,
+            ],
+        ]);
 
-		$session->regenerate();
+        //$session->regenerate();
 
         if(!self::$permissionManager->userHasPermission(self::$currentRoute))
         {
@@ -310,23 +310,23 @@ class SessionAuthMiddleware implements MiddlewareInterface
 
         $this->username = $user['username'];
 
-		foreach ($this->repoFields['identities'] as $identityField)
-		{
-			$this->userConditions[] =
-			[
-                'field' => $identityField,
-				'operator' => '=',
-				'queue' => $this->username,
-				'logicalOperator' => 'OR'
-			];
-		}
+        foreach ($this->repoFields['identities'] as $identityField)
+        {
+            $this->userConditions[] =
+                [
+                    'field' => $identityField,
+                    'operator' => '=',
+                    'queue' => $this->username,
+                    'logicalOperator' => 'OR'
+                ];
+        }
         return true;
     }
 
-	public static function getUserName()
-	{
-		return self::$username;
-	}
+    public static function getUserName()
+    {
+        return self::$username;
+    }
 
     public function getCurrentSessionHash(SessionInterface $session) : string|bool
     {
