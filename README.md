@@ -1,382 +1,454 @@
-# Session-Auth-Middleware
+# Mezzio Session Auth Middleware
 
+Die SessionAuthMiddleware (SAM) ist eine PSR-15-Middleware für Laminas/Mezzio-Anwendungen. Sie verbindet Session-basierte Authentifizierung, Login-Routen, Datenbank-gestützte Session-Fingerprints und ein gruppenbasiertes Berechtigungssystem.
 
-You can install this package with the following command:
-```composer require marcel-maqsood/session-auth-middleware```
+SAM prüft nicht nur, ob ein Benutzer angemeldet ist. Sie stellt auch sicher, dass die Session noch gültig ist, dass kein neueres Login auf einem anderen Gerät existiert und dass der angemeldete Benutzer die Permission der aktuell angefragten Route besitzt.
 
-## Configuration
+## Installation
 
-### Additional Notes: ###
-As our Middleware can run on any request, it is meant to be injected within your applications ```config\autoload\dependencies.global.php``` file, as seen in ```dependencies.global.php```:
+```bash
+composer require marcel-maqsood/session-auth
 ```
-'dependencies' => 
-[
-    'aliases' => 
-    [
-        AuthenticationInterface::class => PhpSession::class,
-        UserRepositoryInterface::class => PDORepository::class,
+
+Das Paket registriert seinen `ConfigProvider` automatisch über Laminas/Mezzio. Die projektbezogenen Konfigurationen müssen trotzdem in die Anwendung übernommen und angepasst werden.
+
+## Was SAM macht
+
+- schützt einzelne Routen oder optional die gesamte Pipeline
+- nutzt Mezzio Sessions und `mezzio/mezzio-authentication-session`
+- authentifiziert Benutzer über `MazeDEV\SessionAuth\Repository\PDORepository`
+- schreibt pro Login einen Session-Hash und einen Session-Zeitstempel in die Login-Tabelle
+- verhindert parallele Logins mit demselben Account, indem ein neuer Login ältere Sessions ungültig macht
+- prüft die Session gegen Browser/IP/User-Agent/Salt-Fingerprint
+- verlängert den Session-Zeitstempel während aktiver Nutzung
+- leitet nicht angemeldete Benutzer auf die passende Fallback- oder Login-Route
+- prüft Permissions über Gruppen und Gruppen-Permission-Zuordnungen
+- unterstützt mehrere Auth-Bereiche, z. B. `user` und `admin`, über Table Overrides
+- kann Benutzernamen und Benutzer-/Permission-Daten an Requests weiterreichen
+- stellt Handler für Login, Logout, Passwort-Reset und Account-Erstellung bereit
+- legt Fehlertexte kurzzeitig im Cookie `error` ab, damit Login-Templates sie anzeigen können
+
+## Grundkonfiguration
+
+Die mitgelieferten Dateien in `config/` sind als Vorlage für `config/autoload/` einer Mezzio-Anwendung gedacht:
+
+- `config/dependencies.global.php`
+- `config/authentication.global.php`
+- `config/messages.global.php`
+
+Die Datenbankstruktur liegt in `db/base.sql`. Zusätzlich gibt es ein MySQL-Workbench-Modell unter `db/SQL-model.mwb`.
+
+### Dependencies
+
+SAM benötigt `PersistentPDO`, den eigenen `PDORepository` und die Mezzio `SessionMiddleware`.
+
+```php
+use MazeDEV\DatabaseConnector\PersistentPDO;
+use MazeDEV\DatabaseConnector\PersistentPDOFactory;
+use MazeDEV\SessionAuth\Repository\PDORepository;
+use MazeDEV\SessionAuth\Repository\PDORepositoryFactory;
+use Mezzio\Authentication\AuthenticationInterface;
+use Mezzio\Authentication\Session\PhpSession;
+use Mezzio\Authentication\UserRepositoryInterface;
+use Mezzio\Session\SessionMiddleware;
+use Mezzio\Session\SessionMiddlewareFactory;
+
+return [
+    'dependencies' => [
+        'aliases' => [
+            AuthenticationInterface::class => PhpSession::class,
+            UserRepositoryInterface::class => PDORepository::class,
+        ],
+        'factories' => [
+            PersistentPDO::class => PersistentPDOFactory::class,
+            PDORepository::class => PDORepositoryFactory::class,
+            SessionMiddleware::class => SessionMiddlewareFactory::class,
+        ],
     ],
-    'invokables' => [],
-    'factories' => 
-    [
-        PersistentPDO::class => PersistentPDOFactory::class,
-        PDORepository::class => PDORepositoryFactory::class,
-        Mezzio\Session\SessionMiddleware::class => Mezzio\Session\SessionMiddlewareFactory::class
-    ],
-],
+];
 ```
-This fullfils multiple purposes:
-- You dont have to configure each ConfigProvide within your modules
-- Any request will always be capabale of SessionAuth Handling (But this will only be used if the route contains our SessionAuthMiddleware)
-- You cant forget to add our base config in every new module that you supply; which could be a hustle otherwise.
 
-You can find our default configuration in ```config\autoload\authentication.global.php``` and drop it into your applications ```config\autoload\``` folder.
-It contains every configuration needed to run our SessionAuthMiddleware and can easily be copied and adjusted..
+## Pipeline
 
+Die Mezzio `SessionMiddleware` muss früh in der Pipeline laufen, bevor SAM oder Login-Handler auf die Session zugreifen.
 
-Also, you have to add the ```Mezzio\Session\SessionMiddleware``` to your pipeline (```config\pipeline.php```), it must be included in the very top of the Pipeline:
-``` 
+```php
 $app->pipe(ErrorHandler::class);
 $app->pipe(ServerUrlMiddleware::class);
-$app->pipe(SessionMiddleware::class); // <<<<<-----
+$app->pipe(SessionMiddleware::class);
 ```
 
-You could also include our ```MazeDEV\SessionAuth\SessionAuthMiddleware``` in your pipeline if you want SessionAuthentication for every request. Be sure to include the SessionMiddleware before piping our Middleware!
+SAM kann pro Route verwendet werden. Das ist die empfohlene Variante, wenn nur bestimmte Bereiche geschützt werden sollen.
 
-
-#### If you want to add our Middleware in your pipeline, it is crucial to include our SessionAuthMiddleware *AFTER* the ```Mezzio\Helper\UrlHelperMiddleware``` which is included in every base pipeline: ####
+```php
+$app->route('/admin/dashboard[/]', [
+    MazeDEV\SessionAuth\SessionAuthMiddleware::class,
+    App\Handler\AdminDashboardHandler::class,
+], ['GET'], 'adminDashboard');
 ```
+
+Alternativ kann SAM global in die Pipeline gesetzt werden. Dann müssen öffentliche Routen in `no-auth-routes` eingetragen werden.
+
+Wichtig: Wenn SAM global gepiped wird, muss sie nach `Mezzio\Helper\UrlHelperMiddleware` laufen, weil Redirects über den `UrlHelper` erzeugt werden.
+
+```php
 $app->pipe(UrlHelperMiddleware::class);
 $app->pipe(SessionAuthMiddleware::class);
 ```
 
+## Login-Routen
 
-For ease of use, we also include a basic database-sql file that contains every table and field that this middleware needs (built like the defaults described in this doc).
-You find it in ```db\base.sql```, we also included a MySQLWorkbench file ```db\SQL-model.mwb```so that you can adjust it to fit your needs without having to reconstruct it.
+Login-Routen werden über `loginHandling` definiert. Der Schlüssel ist der Routename der Login-Route. `destination` ist die Route, auf die nach erfolgreichem Login weitergeleitet wird. `resetDestination` ist die Passwort-Reset-Route, die im Login-Template verfügbar gemacht wird.
 
-
-Also: our SessionAuthMiddleware doesn't allow for multi-logons per account, we implemented features that prevent that on purpose as we think its the safest approach to logoff any other device and telling them they have been logged out.
-You just have to use the variable "error" (as iterable) within your template to display any error that occoured.
-
-Permissions, Groups and even Logins can be flagged as "hidden" within the database, that way, you can prevent them from beeing rendered in lists, so that nobody can use these to add them to users / groups, if they dont have direct access on your database.
-
-#### No Auth Routes ####
-In case you choosed to include our SessionAuthMiddleware in your pipeline instead of within certain routes,
-we included some configurability to exclude certain routes from getting checked:
-```
-'no-auth-routes' => [ //Routes that wont even be checked for authentication if the AuthSessionMiddleware is placed inside the pipe.
-	'adminPasswordReset',
-	'userPasswordReset',
-],
-```
-This is mandatory, as your users are not logged in if they want to reset their password, for example.
-
-
-#### LoginHandlers ####
-To provide you with a working LoginHandler, we included one that is capable of all features that this doc meantions, you can find it in
-```src\LoginHandler\GlobalLoginHandler.php```
-
-To use it, you just have to define a route for it, as it is already included in our ConfigProvider:
-```
-
-$app->route('/authorized[/]',
-    [
-        MazeDEV\SessionAuth\SessionAuthMiddleware::class,
-        MazeDEV\SessionAuth\LoginHandler\GlobalLoginHandler::class
-    ],
-    [
-        'GET',
-        'POST'
-    ],
-    'login1'
-);
-
-$app->route('/authorized/landing[/]',
-    [
-        MazeDEV\SessionAuth\SessionAuthMiddleware::class,
-        App\Handler\YourLandingHandler::class
-    ],
-    [
-        'GET',
-        'POST'
-    ],
-    'authorizedPage'
-);
-
-```
-
-Each route that begins with our SessionAuthMiddleware will be fully secured and requires a valid login with permissions set corrently.
-Our GlobalLoginHandler is capable of redirecting logins from different login-forms to different destinations, you just have to set a configuration for it:
-```
+```php
 'loginHandling' => [
-    'login1' => [
-        'name' => 'Base Login',
-        'destination' => 'authorizedPage',
-    ],
-    'login2' => [
-        'name' => 'Base Login2',
-        'destination' => 'authorizedPage2',
-    ],
-    //...
-],
-```
-Our LoginHandler and SessionAuthMiddleware need exactly that syntax to work properly.
-If you don't define loginHandling, the SessionAuthMiddleware won't be able to detect the routes and where they belong to.
-
-#### Keep in mind: ####
-The 'routename' (like: 'authorizedPage') of each route is also its permission; so for every route that you define, you have to add a permission inside the database and connect it to the desired groups.
-However this only applies to routes that our Middleware is invloved, any other route doesn't have to be added within the database.
-
-Also, you have to provide a template named "Login.html.twig" within your  '```src\App\src\templates\app```' folder, it is used by our GlobalLoginHandler to render the login form.
-
-We provide you a basic login form, named ```Login.html.twig``` within ```src\Templating\```.
-
-
-
-#### Logout Handlers ####
-We provide you a default LogoutHandler which just removes the UserInterface from the request's session and redirect the request towards your home route.
-As this is currently hard-coded, you have to provide your application with one route named "home", best case: your main landingpage.
-This is how to add the LogoutHandler in one of your routes:
-```
-$app->route('/logout[/]',
-    [
-        MazeDEV\SessionAuth\LogoutHandler\LogoutHandler::class,
-    ],
-    [
-        'GET',
-        'POST'
-    ],
-    'logout'
-);
-```
-From within your applcation, you just have to add it as a link or redirect so that users can logout.
-
-
-##### <a id="pdo">persistentpdo - An array, in which we define our database-connection rules:</a>
-See MazeDEV/Marcel-Maqsood(https://github.com/marcel-maqsood/DatabaseConnector) for additional informations and documentation.
-Our SessionAuthMiddleware uses this DatabaseConnector and therefore requires its configuration set.
-Within our default config, we already supply these settings and you just have to adjust them.
-Also, PersistentPDO must be included within your applications ```config\autoload\dependencies.global.php``` as it is required for our SessionAuthMiddleware.
-We already included it within our ```config\dependencies.global.php```.
-
-
-
-##### <a id="auth">Within the 'authentication' entry, we define specific attribites for our Session-Auth Middleware:</a>
-```
-'authentication' => [
-    'redirect' => '/', //- The Link at which unauthorized request get redirect (As of PHPSession), however, the SessionAuthMiddleware won't use it.
-    'username' => 'username', //- The key in which the username is within $_POST. default: 'username'
-    'password' => 'password', //- The key in which the password is within $_POST. default: 'password'
-    'repository' => [ //- An array, in which the details for our database-table are.
-        'table' => 'login', //- The table, in which we look for the user.  default: 'logins'
-        'fields' => [ //- An array in which the fields of that table are to authenticate a user.
-            'identities' => [ //An array with all fields that contains login-names or mails, and so on.
-                'username',
-                'email'
-            ], 
-            'password' => 'anyPass' //- The key, with which we check if the password in $_POST is equal.
-        ],
-        'table_override' => [ // - An array, in which we define routes and their database-table prefix that the system will use tot check if they start with the key of any entry.
-            'user'  => 'user', // Routename starts with 'user' => use table prefix 'user' : user - for base table, user_permissions for all permissions that only user-groups can have, etc.
-            'admin' => 'admin',
-        ],
-    ],
-    'security' => [ //- An array for our security features.
-        'algo' => 'sha256', //- The algorithm used for generating the SessionHash stored in the database. default: 'sha256'
-        'salt' => 'anySalt', // - The string which we use to harden our hashes be appending it.
-        'fields' => [ //- An array, in which we define session related fields within our 'logins' table to be used to check if the session is valid.
-            'session' => 'sessionhash', //- The key which we use to get the users current session-hash and check if it matches the request. default: 'sessionhash'
-            'stamp' => 'sessionstart' //- The key which we use to get the session-start of the current session to check if it is still valid. default: 'sessionstart'
-        ]
-    ]
-]
-```
-
-if the key ```'table_override'``` is not set within ```'repository'```, the system will only use the ```'table'``` value set in ```'repository'``` to map to a table.
-
-Our SessionAuthMiddleware also requires this config entry:
-```
-'session' => [
-    'config' => [
-        'cookie_lifetime' => 60 * 60 * 1, //- Time in seconds which the cookie is valid. default: '1h'
-        'gc_lifetime' => 60 * 60 * 24 //- Time in seconds which the created session is valid. default: '24h'
-    ]
-]
-```
-
-##### <a id="permissions">Permission Management</a>
-As this is a authentication handler, we also want to check if a user has the permission to see its requested content.
-- Check if the request's user has permissions on the current route.
-- Redirecting towards the referring page, if the user does not have permissions to see its requested content.
-- Redirecting towards login-forms if the user directly requested a page without permission and without beeing on the page before.
-- Redirecting from login-form towards a page if the user has permissions to that page.
-- Permissions can be marked as "allowBypass" which grants the user the same right as having the permission, like for routes that should always be accessabile but defined to use as fallback.
-- Definition of a fallback permission (route) if the user does not have permission on its current route and should be redirected towards another route.
-- You can define permissions with value "*" (asteriks) to grant a group all permissions.
-
-
-Default table definition within any global or local config.php (located in ```config\autoload\```):
-```
-return [
-    'tables' => [
-        'user' => [
-            'tableName' => 'users',
-            'identifier' => 'loginId',
-            'loginName' => 'username',
-            'display' = 'hidden',
-            'resetHash' => 'forgothash',
-            'resetValid' => 'forgotvalid'
-        ],
-        'user_group_relation' => [
-            'tableName' => 'user_has_groups',
-            'identifier' => 'lhgId',
-            'group_identifier' => 'groupId',
-            'login_identifier' => 'loginId',
-        ],
-        'user_groups' => [
-            'tableName' => 'user_groups',
-            'identifier' => 'groupId',
-            'name' => 'name',
-            'display' = 'hidden'
-        ],
-        'user_permissions' => [
-            'tableName' => 'user_permissions',
-            'identifier' => 'permissionId',
-            'name' => 'name',
-            'value' => 'value',
-            'noPermFallback' => 'noPermFallback',
-            'allowBypass' => 'allowBypass',
-            'display' = 'hidden'
-        ],
-        'user_group_permission_relation' => [
-            'tableName' => 'user_group_has_permissions',
-            'identifier' => 'ghpId',
-            'permission_identifier' => 'permissionId',
-            'group_identifier' => 'groupId',
-        ],
-    ]
-]
-```
-
-As stated before, you can define permission fallbacks if a given permission is not granted and should redirect towards somewhere else.
-
-Permissions cannot be granted to certain users but instead to a group which can be granted to users.
-users may have as much groups as you want and groups may have as much permissions as you want.
-
-#### Password Reset Functionality #####
-As your application might need a reset-password function, we included a basic Handler within ```Handler\ForgotPasswordHandler```
-It uses basic form posts with the follwing needed input-fields:
-- username (which is used to find a user account with the value as its username or email)
-- password
-- action; either "submit" or "request" so that the handler know what he should do.
-
-The password reset Handler sends an Email to the user (if existing) with a link towards its designated password change form.
-This is a basic "request" reset-password form:
-
-```
-<form id="resetPwForm" method="post">
-	<input type="hidden" name="action" value="request"/>
-	<div class="input-group mb-3">
-		<input id="username" name="username" type="text" class="form-control" placeholder="Username or E-Mail">
-		<div class="input-group-append">
-			<div class="input-group-text">
-				<span class="fas fa-envelope"></span>
-			</div>
-		</div>
-	</div>
-	
-	div class="row mb-2">
-		<div class="col-6">
-		</div>			
-		<div class="col-6">
-			<button type="submit" class="btn btn-primary btn-block reset-password" data-target="{{ path(resetDestination) }}">Reset Password</button>
-		</div>	
-	</div>
-	<div class="row">
-		<div class="col-6">
-		</div>
-		<div class="col-6">
-			<button type="button" class="btn btn-success btn-block to-login" >Back to Login</button>
-		</div>
-	</div>
-</form>
-```
-
-It should be included in your "login.html.twig" 
-```
-	{{ include('@app/ForgotPassword.html.twig') }}
-```
-and uses the variable "resetDestination" to send the password-reset request towards the correct handler,
-as defined by your config:
-```
-'loginHandling'  => [
     'adminLogin' => [
-        'name'             => 'Admin',
-        'destination'      => 'adminLanding',
+        'name' => 'Admin',
+        'destination' => 'adminDashboard',
         'resetDestination' => 'adminPasswordReset',
     ],
-]
-
-```
-KEEP IN MIND: This is still on your LoginRoute and as such, 
-requests towards the PasswordResetHandler need to be directed directly towards it.
-
-
-After the user submitted its password-reset request;
-He recieves an email with a link towards our PasswordResetHandler, including the queryParam "hash",
-which was saved in the user account after submitting the request.
-We also saved the validUntil date of that hash as it has to expire at some point; by default config, we use 30 days.
-
-a basic password-submit form should look like this:
-
-```
-<form method="post" id="savePwForm">
-    <input type="hidden" name="action" value="submit"/>
-	<div class="input-group mb-3">
-		<input id="password" name="password" type="password" class="form-control" placeholder="Password">
-		<div class="input-group-append">
-			<div class="input-group-text">
-				<span class="fas fa-lock"></span>
-			</div>
-		</div>
-	</div>
-	<div class="row">
-		<div class="col-4"></div>
-		<div class="col-4"></div>
-		<div class="col-4">
-			<button type="submit" class="btn btn-primary btn-block save-pw">Update</button>
-		</div>
-	</div>
-	<div class="row">
-		<div class="col-12">
-			<div class="bg-gradient-success mt-3 set-sent text-center" style="display:none">
-			    <p class="text-dark font-weight-bold mt-2">Your password was changed. You will receive an email.</p>
-		    </div>
-		    <div class="bg-gradient-danger mt-3 set-fail text-center" style="display:none">
-			    <p class="text-light font-weight-bold mt-2">Your password couldn't be changed.</p>
-		    </div>
-		</div>
-	</div>
-</form>
+    'userLogin' => [
+        'name' => 'Benutzer',
+        'destination' => 'userDashboard',
+        'resetDestination' => 'userPasswordReset',
+    ],
+],
 ```
 
-As our HTML-Templates use some javascript, we included you all the functions that might be handy; you find the js in
-```js\basic.js``` it is based on JQuery so be sure to included JQuery in your project.
+Beispielrouten:
 
+```php
+$app->route('/admin/login[/]', [
+    MazeDEV\SessionAuth\SessionAuthMiddleware::class,
+    MazeDEV\SessionAuth\Handler\GlobalLoginHandler::class,
+], ['GET', 'POST'], 'adminLogin');
 
-##### <a id="messages">Error Messages</a>
-Our Session-Auth-Middleware will store a cookie that is valid for 60 seconds if it encounters any issues:
+$app->route('/admin/dashboard[/]', [
+    MazeDEV\SessionAuth\SessionAuthMiddleware::class,
+    App\Handler\AdminDashboardHandler::class,
+], ['GET'], 'adminDashboard');
 ```
-setcookie("error", $this->errorMessage, time() + 60, '/');
-```
-You can use that cookie to receive the error message and display it to the user.
 
+Der `GlobalLoginHandler` rendert das Template `app::Login`. Die mitgelieferte Vorlage liegt unter `src/Templating/Login.html.twig`.
+
+Bei einem Login:
+
+- wird eine bestehende User-Session zuerst entfernt
+- werden Benutzername und Passwort über `PhpSession` und `PDORepository` geprüft
+- wird das Passwort mit `password_verify($password . $salt, $hash)` validiert
+- werden Session-Hash und Session-Start in der passenden Login-Tabelle gespeichert
+- wird anschließend auf die konfigurierte `destination` weitergeleitet
+
+## Logout
+
+Der `LogoutHandler` entfernt den User aus der Session und leitet auf die Route `home` weiter. Die Anwendung muss diese Route bereitstellen.
+
+```php
+$app->route('/logout[/]', [
+    MazeDEV\SessionAuth\Handler\LogoutHandler::class,
+], ['GET', 'POST'], 'logout');
+```
+
+## Öffentliche Routen
+
+Wenn SAM global gepiped wird, werden Routen aus `no-auth-routes` ohne Auth-Prüfung durchgelassen. Das ist besonders für Passwort-Reset-Routen wichtig.
+
+```php
+'no-auth-routes' => [
+    'adminPasswordReset' => 'adminLogin',
+    'userPasswordReset' => 'userLogin',
+],
+```
+
+Der Wert wird vom Passwort-Reset-Handler auch als Login-Ziel genutzt, wenn ein Reset-Link ungültig oder abgelaufen ist.
+
+## Authentication Config
+
+Die `authentication`-Config steuert Login-Felder, Repository-Zugriff, Session-Sicherheit, Passwort-Reset und optionale Weitergabe von Daten an Requests.
+
+```php
+'authentication' => [
+    'redirect' => '/',
+    'username-forwarding' => true,
+    'permission-forwarding' => false,
+    'passwordResetOffset' => 2592000,
+    'allowWildcard' => true,
+
+    'username' => 'username',
+    'password' => 'password',
+
+    'repository' => [
+        'table' => 'user',
+        'fields' => [
+            'identities' => [
+                'username',
+                'email',
+            ],
+            'password' => 'passwordhash',
+        ],
+        'disable-check' => true,
+
+        'table_override' => [
+            'user' => [
+                'tableKey' => 'user',
+                'display' => 'Benutzer',
+                'loginAt' => 'userLogin',
+            ],
+            'admin' => [
+                'tableKey' => 'admin',
+                'display' => 'Admin',
+                'loginAt' => 'adminLogin',
+            ],
+        ],
+    ],
+
+    'security' => [
+        'algo' => 'sha256',
+        'salt' => 'change-this-salt',
+        'fields' => [
+            'session' => 'sessionhash',
+            'stamp' => 'sessionstart',
+        ],
+    ],
+],
+```
+
+Konfigurationsfelder:
+
+- `username` und `password`: POST-Feldnamen für Login-Formulare.
+- `repository.table`: Standard-Tabellenprefix, wenn keine Route per `table_override` erkannt wird.
+- `repository.fields.identities`: Datenbankfelder, über die ein Login gesucht werden darf, z. B. Benutzername oder E-Mail.
+- `repository.fields.password`: Feld mit dem Passwort-Hash.
+- `repository.disable-check`: aktiviert die Prüfung gegen das konfigurierte Disabled-Feld der Login-Tabelle.
+- `repository.table_override`: ordnet Routenpräfixe einem Tabellenprefix zu. Beginnt eine Route mit `admin`, nutzt SAM z. B. `admin`, `admin_groups`, `admin_permissions` usw.
+- `security.algo`: Hash-Algorithmus für Session- und Reset-Hashes.
+- `security.salt`: Salt für Passwortprüfung und Session-Fingerprint.
+- `security.fields.session`: Datenbankfeld für den aktuellen Session-Hash.
+- `security.fields.stamp`: Datenbankfeld für den Session-Zeitstempel.
+- `username-forwarding`: setzt den aktuellen Benutzernamen als Request-Attribut `adminName`.
+- `permission-forwarding`: lädt Benutzerdaten und Permissions früh im Request über den `PermissionManager`.
+- `allowWildcard`: erlaubt die Permission `*` als globale Berechtigung, wenn die angefragte Permission in der Datenbank existiert.
+- `passwordResetOffset`: Gültigkeit neuer Passwort-Reset-Hashes in Sekunden.
+
+Hinweis: Die aktuelle `SessionAuthMiddleware` liest `table_override` unter `authentication.repository.table_override`.
+
+## Session Config
+
+```php
+'session' => [
+    'config' => [
+        'cookie_lifetime' => 60 * 60,
+        'gc_lifetime' => 60 * 60 * 24,
+    ],
+],
+```
+
+`gc_lifetime` ist für SAM besonders wichtig: Der Wert definiert, wie lange der in der Datenbank gespeicherte Session-Zeitstempel gültig bleibt. Läuft diese Zeit ab, wird die Session verworfen und der Benutzer muss sich neu anmelden.
+
+Während aktiver Nutzung aktualisiert SAM den Datenbank-Zeitstempel höchstens einmal pro Minute.
+
+## PermissionManager
+
+Der `PermissionManager` lädt Berechtigungsdaten für den aktuellen Tabellenprefix und prüft anschließend die Route als Permission.
+
+Das Prinzip ist bewusst einfach: Der Routename ist die Permission.
+
+Beispiel: Eine Route mit dem Namen `adminDashboard` benötigt eine Permission mit dem Wert `adminDashboard`. Benutzer erhalten Permissions nicht direkt, sondern über Gruppen.
+
+Der PermissionManager kann:
+
+- alle Permissions eines Bereichs laden
+- den aktuellen Tabellenprefix setzen, z. B. `user` oder `admin`
+- Benutzerdaten inklusive Settings, Gruppen und Permissions laden
+- prüfen, ob der Benutzer in einer Gruppe ist
+- prüfen, ob der Benutzer eine Permission besitzt
+- Bypass-Permissions berücksichtigen
+- Wildcard-Permissions berücksichtigen
+- eine Fallback-Route für fehlende Permissions ermitteln
+- User-Daten und User-Settings aktualisieren
+
+### Permission-Fallbacks
+
+Permissions können eine Fallback-Permission referenzieren. Hat ein Benutzer keinen Zugriff auf die angefragte Route und gibt es keinen internen Referer, leitet SAM auf die Fallback-Route um.
+
+Wenn keine Permission zur Route existiert, verwendet der `PermissionManager` `home` als Fallback.
+
+### Bypass und Wildcard
+
+Eine Permission mit `allowBypass = 1` gilt immer als erlaubt. Das ist nützlich für Fallback- oder Basisrouten, die technisch geschützt sind, aber allen angemeldeten Benutzern offenstehen sollen.
+
+Wenn `authentication.allowWildcard` auf `true` steht, kann eine Gruppe mit der Permission `*` Zugriff auf alle in der Datenbank definierten Permissions erhalten.
+
+## Tabellenkonfiguration
+
+SAM verwendet Tabellenprefixe. Für den Prefix `user` werden z. B. diese Config-Keys erwartet:
+
+- `user`
+- `user_settings`
+- `user_group_relation`
+- `user_groups`
+- `user_permissions`
+- `user_group_permission_relation`
+
+Für `admin` entsprechend:
+
+- `admin`
+- `admin_settings`
+- `admin_group_relation`
+- `admin_groups`
+- `admin_permissions`
+- `admin_group_permission_relation`
+
+Beispiel für `user`:
+
+```php
+'tables' => [
+    'user' => [
+        'tableName' => 'users',
+        'identifier' => 'loginId',
+        'loginName' => 'username',
+        'loginMail' => 'email',
+        'disabled' => 'disabled',
+        'hidden' => 'hidden',
+        'resetHash' => 'forgothash',
+        'resetValid' => 'forgotvalid',
+    ],
+    'user_settings' => [
+        'tableName' => 'user_settings',
+        'identifier' => 'settingId',
+        'user_identifier' => 'loginId',
+        'icon_path' => 'icon_path',
+        'language' => 'language',
+    ],
+    'user_group_relation' => [
+        'tableName' => 'user_has_groups',
+        'identifier' => 'lhgId',
+        'group_identifier' => 'groupId',
+        'login_identifier' => 'loginId',
+    ],
+    'user_groups' => [
+        'tableName' => 'user_groups',
+        'identifier' => 'groupId',
+        'name' => 'name',
+        'hidden' => 'hidden',
+    ],
+    'user_permissions' => [
+        'tableName' => 'user_permissions',
+        'identifier' => 'permissionId',
+        'name' => 'name',
+        'value' => 'value',
+        'noPermFallback' => 'noPermFallback',
+        'allowBypass' => 'allowBypass',
+        'hidden' => 'hidden',
+    ],
+    'user_group_permission_relation' => [
+        'tableName' => 'user_group_has_permissions',
+        'identifier' => 'ghpId',
+        'permission_identifier' => 'permissionId',
+        'group_identifier' => 'groupId',
+    ],
+],
+```
+
+Die Spaltennamen sind frei konfigurierbar, solange die Config die tatsächlichen Datenbankfelder korrekt abbildet.
+
+## Message Config
+
+SAM und die Handler lesen Fehlermeldungen aus `messages.error`. Wenn SAM während einer Auth-Prüfung einen Fehler erkennt, wird der Text für 60 Sekunden als Cookie `error` gesetzt.
+
+```php
+'messages' => [
+    'error' => [
+        'session-detail-error' => 'Ihre Sitzung scheint fehlerhaft zu sein, bitte melden Sie sich erneut an.',
+        'session-set-error' => 'Ihre Sitzung konnte nicht eingetragen werden, bitte probieren Sie es erneut.',
+        'session-expired-error' => 'Ihre Sitzung ist ausgelaufen, bitte melden Sie sich erneut an.',
+        'another-device-logon-error' => 'Ein anderes Gerät hat sich angemeldet.',
+        'logon-required-error' => 'Für diesen Inhalt müssen Sie angemeldet sein.',
+        'user-create-error' => 'Der Zugang konnte nicht angelegt werden.',
+        'user-repo-error' => 'Sie müssen sich mit einem Zugang für diesen Bereich anmelden.',
+        'credential-error' => 'Fehlerhafte Zugangsdaten',
+        'session-path-swap-error' => 'Sie wurden abgemeldet, da Ihre Sitzung für diesen Bereich ungültig ist.',
+    ],
+],
+```
+
+Verwendete Keys:
+
+- `session-detail-error`: Sessiondaten fehlen oder sind nicht lesbar.
+- `session-set-error`: Session-Zeitstempel konnte nicht sauber gesetzt oder gelesen werden.
+- `session-expired-error`: Session ist nach `gc_lifetime` abgelaufen.
+- `another-device-logon-error`: Der Datenbank-Sessionhash passt nicht mehr zur aktuellen Session.
+- `logon-required-error`: Die Route benötigt ein Login.
+- `credential-error`: Benutzername oder Passwort sind falsch.
+- `user-create-error`: Account-Erstellung konnte nicht gespeichert werden.
+- `user-repo-error`: Login passt nicht zum aktuellen Auth-Bereich.
+- `session-path-swap-error`: Eine Session aus einem Auth-Bereich wird für einen anderen Bereich benutzt, z. B. Admin-Session auf User-Route.
+
+Im Login-Handler wird das Cookie gelesen, gelöscht und als Template-Variable `error` an `app::Login` übergeben.
+
+## Passwort-Reset
+
+Der `ForgotPasswordHandler` unterstützt zwei POST-Aktionen:
+
+- `request`: Reset-Link anfordern
+- `submit`: neues Passwort speichern
+
+Für den Reset werden diese Felder in der Login-Tabelle benötigt:
+
+- `resetHash`
+- `resetValid`
+- `loginMail`
+
+Die Gültigkeit wird über `authentication.passwordResetOffset` gesteuert. Standard im Code ist `2592000` Sekunden, also 30 Tage.
+
+Für den Mailversand erwartet der Handler:
+
+- `requestPasswordAdapter`
+- `submitPasswordAdapter`
+- das optionale Paket `MazeDEV\FormularHandlerMiddleware\Adapter\SmtpMail`
+
+Die mitgelieferten Templates liegen unter:
+
+- `src/Templating/SetPasswordForm.html.twig`
+- `src/Templating/emailing/ForgotPassword.html.twig`
+- `src/Templating/emailing/PasswordSet.html.twig`
+- `src/Templating/emailing/DefaultMail.html.twig`
+
+## Account-Erstellung
+
+Der `CreateAccountHandler` verarbeitet POST-Requests und nutzt die Tabellenkonfiguration des aktuell erkannten Auth-Bereichs. Die eigentliche Feldabbildung wird über den `AbstractRequestHandler` erzeugt.
+
+Fehlschläge werden mit `messages.error.user-create-error` gemeldet.
+
+## Session- und Sicherheitslogik
+
+SAM erzeugt den Session-Fingerprint aus:
+
+- PHP-Zeitzone
+- Remote-IP plus Proxy-Header, wenn vorhanden
+- User-Agent
+- `authentication.security.salt`
+
+Der Hash wird mit `authentication.security.algo` erzeugt und beim Login in der Datenbank gespeichert. Bei jedem geschützten Request wird der aktuelle Hash mit dem Datenbankwert verglichen.
+
+Wenn ein anderer Login denselben Account verwendet, überschreibt dieser Login den Datenbankhash. Die ältere Session erkennt das beim nächsten Request und wird abgemeldet.
+
+## Zugriff auf User und Permissions im Code
+
+Die Middleware hält den `PermissionManager` statisch vor:
+
+```php
+$user = MazeDEV\SessionAuth\SessionAuthMiddleware::$permissionManager::getUser();
+$groups = MazeDEV\SessionAuth\SessionAuthMiddleware::$permissionManager->getGroups();
+$hasPermission = MazeDEV\SessionAuth\SessionAuthMiddleware::$permissionManager->userHasPermission('adminDashboard');
+```
+
+Zusätzlich kann `username-forwarding` den Benutzernamen als Request-Attribut `adminName` setzen. Bei Sessions mit gespeichertem Auth-Bereich wird außerdem `userPath` gesetzt.
 
 ## Credits
 
-This Software has been developed by MazeDEV/Marcel-Maqsood(https://github.com/marcel-maqsood).
-
+Entwickelt von MazeDEV / Marcel Maqsood.
 
 ## License
 
-The MIT License (MIT). Please see [License File](LICENSE) for more information.
+MIT. Siehe [LICENSE.md](LICENSE.md).
