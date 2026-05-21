@@ -68,22 +68,31 @@ class SessionAuthMiddleware implements MiddlewareInterface
     {
         $this->referer = $request->getHeaderLine('Referer');
 
+		$routeResult = $request->getAttribute(RouteResult::class);
+		self::$currentRoute = $routeResult->getMatchedRouteName();
+
         self::$tableOverride = $this->authConfig['repository']['table'];
         self::$permissionManager->setTablePrefix(self::$tableOverride);
 
         $session = $request->getAttribute('session');
         if($session->has(UserInterface::class))
         {
+			$path = null;
+			if(isset($session->get(UserInterface::class)['details']['path']))
+			{
+				$path = $session->get(UserInterface::class)['details']['path'];
+			}
+
             $this->username = $session->get(UserInterface::class)['username'];
             if(isset($this->authConfig['username-forwarding']) && $this->authConfig['username-forwarding'] == true)
             {
                 $request = $request->withAttribute('adminName', $this->username);
             }
 
-            if(isset($session->get(UserInterface::class)['details']) && isset($session->get(UserInterface::class)['details']['path']))
+            if(isset($session->get(UserInterface::class)['details']) && !empty($path))
             {
-                $request = $request->withAttribute('userPath', $session->get(UserInterface::class)['details']['path']);
-                self::$tableOverride = $session->get(UserInterface::class)['details']['path'];
+                $request = $request->withAttribute('userPath', $path);
+                self::$tableOverride = $path;
             }
 
             if(isset($this->authConfig['permission-forwarding']) && $this->authConfig['permission-forwarding'] == true)
@@ -98,13 +107,12 @@ class SessionAuthMiddleware implements MiddlewareInterface
             $this->referer = null;
         }
 
-        $routeResult = $request->getAttribute(RouteResult::class);
-        self::$currentRoute = $routeResult->getMatchedRouteName();
-
         if(!self::$currentRoute)
         {
             return $handler->handle($request);
         }
+
+		$detectedPath = null;
 
         if(isset($this->authConfig['repository']['table_override']))
         {
@@ -113,9 +121,23 @@ class SessionAuthMiddleware implements MiddlewareInterface
                 if(str_starts_with(self::$currentRoute, $routePrefix))
                 {
                     self::$tableOverride = $table['tableKey'];
+					$detectedPath = $routePrefix;
                     break;
                 }
             }
+
+			if(!empty($path) && !empty($detectedPath))
+			{
+				$loginAt = $this->authConfig['repository']['table_override'][$path]['loginAt'];
+				
+				if(!str_starts_with($detectedPath, $path))
+				{
+					//no bueno, we as admins are visiting user sites or vice versa.
+					$session->unset(UserInterface::class);
+					$this->errorMessage = $this->messages['error']['session-path-swap-error'];
+					return new RedirectResponse($this->urlHelper->generate($loginAt));
+				}
+			}
         }
 
         self::$permissionManager->setTablePrefix(self::$tableOverride);
