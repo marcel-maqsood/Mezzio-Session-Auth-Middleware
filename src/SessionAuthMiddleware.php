@@ -129,12 +129,13 @@ class SessionAuthMiddleware implements MiddlewareInterface
 			if(!empty($path) && !empty($detectedPath))
 			{
 				$loginAt = $this->authConfig['repository']['table_override'][$path]['loginAt'];
-				
+
 				if(!str_starts_with($detectedPath, $path))
 				{
 					//no bueno, we as admins are visiting user sites or vice versa.
 					$session->unset(UserInterface::class);
 					$this->errorMessage = $this->messages['error']['session-path-swap-error'];
+					\setcookie("error", $this->errorMessage, time() + 60, '/');
 					return new RedirectResponse($this->urlHelper->generate($loginAt));
 				}
 			}
